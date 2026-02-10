@@ -1,5 +1,8 @@
 package work.socialhub.kxweb.util
 
+import org.kotlincrypto.macs.hmac.sha1.HmacSHA1
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.random.Random
 
 /**
@@ -8,7 +11,7 @@ import kotlin.random.Random
  *
  * Reference: Nitter's OAuth implementation (apiutils.nim)
  */
-expect object OAuth1Util {
+object OAuth1Util {
 
     /**
      * Generate OAuth1 Authorization header value.
@@ -22,6 +25,7 @@ expect object OAuth1Util {
      * @param oauthSecret OAuth access token secret
      * @return Authorization header value (e.g., "OAuth oauth_consumer_key=..., ...")
      */
+    @OptIn(ExperimentalEncodingApi::class)
     fun generateAuthHeader(
         method: String,
         url: String,
@@ -30,7 +34,47 @@ expect object OAuth1Util {
         consumerSecret: String,
         oauthToken: String,
         oauthSecret: String,
-    ): String
+    ): String {
+        val nonce = generateNonce()
+        val timestamp = currentTimestamp()
+
+        // OAuth parameters
+        val oauthParams = mapOf(
+            "oauth_consumer_key" to consumerKey,
+            "oauth_nonce" to nonce,
+            "oauth_signature_method" to "HMAC-SHA1",
+            "oauth_timestamp" to timestamp,
+            "oauth_token" to oauthToken,
+            "oauth_version" to "1.0",
+        )
+
+        // All parameters (query + oauth) sorted by key
+        val allParams = (queryParams + oauthParams).entries.sortedBy { it.key }
+
+        // Build parameter string
+        val paramString = allParams.joinToString("&") { (key, value) ->
+            "${percentEncode(key)}=${percentEncode(value)}"
+        }
+
+        // Build signature base string
+        val signatureBase = "${method.uppercase()}&${percentEncode(url)}&${percentEncode(paramString)}"
+
+        // Build signing key
+        val signingKey = "${percentEncode(consumerSecret)}&${percentEncode(oauthSecret)}"
+
+        // Generate HMAC-SHA1 signature
+        val mac = HmacSHA1(signingKey.encodeToByteArray())
+        val rawSignature = mac.doFinal(signatureBase.encodeToByteArray())
+        val signature = Base64.encode(rawSignature)
+
+        // Build Authorization header
+        val authParams = oauthParams + ("oauth_signature" to signature)
+        val authHeader = authParams.entries.joinToString(", ") { (key, value) ->
+            "${percentEncode(key)}=\"${percentEncode(value)}\""
+        }
+
+        return "OAuth $authHeader"
+    }
 }
 
 /**

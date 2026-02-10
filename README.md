@@ -66,6 +66,51 @@ Here is a sample Maven configuration:
 </dependency>
 ```
 
+### Authentication
+
+This library supports two authentication methods.
+
+#### Cookie-Based Authentication (Recommended)
+
+Extract `auth_token` and `ct0` cookies from your browser while logged into x.com.
+
+**Option A: Browser DevTools Console**
+
+Open DevTools (F12) on x.com and run the following in the Console:
+
+```javascript
+console.log("auth_token:", document.cookie.split('; ').find(c => c.startsWith('auth_token='))?.split('=')[1]);
+console.log("ct0:", document.cookie.split('; ').find(c => c.startsWith('ct0='))?.split('=')[1]);
+```
+
+**Option B: DevTools Application Tab**
+
+1. Open DevTools (F12) on x.com
+2. Go to **Application** > **Cookies** > `https://x.com`
+3. Copy the values of `auth_token` and `ct0`
+
+Then create an instance:
+
+```kotlin
+val xweb = XWebFactory.instance(
+    authToken = "your_auth_token",
+    csrfToken = "your_ct0_value"
+)
+```
+
+#### OAuth1 Authentication (JVM Only)
+
+Uses OAuth 1.0a with HMAC-SHA1 signature (same approach as Nitter). The library includes public consumer credentials internally, so you only need to provide user-level tokens.
+
+```kotlin
+val xweb = XWebFactory.instanceOAuth(
+    oauthToken = "your_oauth_token",
+    oauthSecret = "your_oauth_secret"
+)
+```
+
+> **Note:** OAuth1 authentication is currently only supported on JVM. On JS and Native platforms, use cookie-based authentication instead.
+
 ### Features
 
 This library is currently under active development. The following features are planned:

@@ -64,6 +64,51 @@ Maven の設定例は以下の通りです。
 </dependency>
 ```
 
+### 認証
+
+このライブラリは2つの認証方法をサポートしています。
+
+#### Cookie ベース認証（推奨）
+
+x.com にログインした状態のブラウザから `auth_token` と `ct0` Cookie を取得します。
+
+**方法 A: ブラウザの DevTools コンソール**
+
+x.com で DevTools（F12）を開き、コンソールで以下を実行してください：
+
+```javascript
+console.log("auth_token:", document.cookie.split('; ').find(c => c.startsWith('auth_token='))?.split('=')[1]);
+console.log("ct0:", document.cookie.split('; ').find(c => c.startsWith('ct0='))?.split('=')[1]);
+```
+
+**方法 B: DevTools の Application タブ**
+
+1. x.com で DevTools（F12）を開く
+2. **Application** > **Cookies** > `https://x.com` を開く
+3. `auth_token` と `ct0` の値をコピーする
+
+取得した値でインスタンスを作成します：
+
+```kotlin
+val xweb = XWebFactory.instance(
+    authToken = "your_auth_token",
+    csrfToken = "your_ct0_value"
+)
+```
+
+#### OAuth1 認証（JVM のみ）
+
+OAuth 1.0a の HMAC-SHA1 署名を使用します（Nitter と同じアプローチ）。ライブラリ内部に公開 Consumer Key を内蔵しているため、ユーザーレベルのトークンのみ必要です。
+
+```kotlin
+val xweb = XWebFactory.instanceOAuth(
+    oauthToken = "your_oauth_token",
+    oauthSecret = "your_oauth_secret"
+)
+```
+
+> **注意:** OAuth1 認証は現在 JVM のみサポートされています。JS および Native プラットフォームでは Cookie ベース認証を使用してください。
+
 ### 機能
 
 このライブラリは現在積極的に開発中です。以下の機能を予定しています。

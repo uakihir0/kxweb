@@ -61,6 +61,7 @@ kotlin {
             implementation(libs.datetime)
             implementation(libs.coroutines.core)
             implementation(libs.serialization.json)
+            implementation(libs.kotlincrypto.hmac.sha1)
         }
 
         // for test
