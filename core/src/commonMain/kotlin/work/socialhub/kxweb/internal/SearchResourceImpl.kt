@@ -9,20 +9,20 @@ import work.socialhub.kxweb.entity.search.SearchSearchRequest
 import work.socialhub.kxweb.entity.search.SearchSearchResponse
 import work.socialhub.kxweb.entity.share.Response
 import work.socialhub.kxweb.internal.entity.GraphQLSearchRoot
-import work.socialhub.kxweb.internal.share._InternalUtility.fromJson
-import work.socialhub.kxweb.internal.share._InternalUtility.graphqlUrl
-import work.socialhub.kxweb.internal.share._InternalUtility.httpRequest
-import work.socialhub.kxweb.internal.share._InternalUtility.isOAuth
-import work.socialhub.kxweb.internal.share._InternalUtility.searchFeatures
-import work.socialhub.kxweb.internal.share._InternalUtility.setTimeouts
-import work.socialhub.kxweb.internal.share._InternalUtility.withCookieHeaders
-import work.socialhub.kxweb.internal.share._InternalUtility.withOAuthHeaders
+import work.socialhub.kxweb.internal.share.InternalUtility.fromJson
+import work.socialhub.kxweb.internal.share.InternalUtility.graphqlUrl
+import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
+import work.socialhub.kxweb.internal.share.InternalUtility.isOAuth
+import work.socialhub.kxweb.internal.share.InternalUtility.searchFeatures
+import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
+import work.socialhub.kxweb.internal.share.InternalUtility.withCookieHeaders
+import work.socialhub.kxweb.internal.share.InternalUtility.withOAuthHeaders
 import work.socialhub.kxweb.model.Media
 import work.socialhub.kxweb.model.Tweet
 import work.socialhub.kxweb.model.User
 import work.socialhub.kxweb.util.toBlocking
 
-class _SearchResource(
+class SearchResourceImpl(
     private val config: XWebConfig
 ) : SearchResource {
 
@@ -72,7 +72,7 @@ class _SearchResource(
         val responseBody = response.stringBody
 
         if (response.status !in 200..299) {
-            throw _InternalUtility.handleError(
+            throw InternalUtility.handleError(
                 exception = null,
                 status = response.status,
                 body = responseBody,
@@ -181,12 +181,12 @@ class _SearchResource(
         )
     }
 
-    private object _InternalUtility {
+    private object InternalUtility {
         fun handleError(
             exception: Exception?,
             status: Int? = null,
             body: String? = null,
-        ) = work.socialhub.kxweb.internal.share._InternalUtility.handleError(
+        ) = work.socialhub.kxweb.internal.share.InternalUtility.handleError(
             exception, status, body,
         )
     }
