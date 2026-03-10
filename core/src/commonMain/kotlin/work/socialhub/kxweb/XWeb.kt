@@ -1,5 +1,6 @@
 package work.socialhub.kxweb
 
+import work.socialhub.kxweb.api.AccountResource
 import work.socialhub.kxweb.api.BookmarkResource
 import work.socialhub.kxweb.api.EngagementResource
 import work.socialhub.kxweb.api.ExploreResource
@@ -16,6 +17,7 @@ import kotlin.js.JsExport
 
 @JsExport
 interface XWeb {
+    fun account(): AccountResource
     fun search(): SearchResource
     fun tweet(): TweetResource
     fun home(): HomeResource

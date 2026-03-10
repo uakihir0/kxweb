@@ -2,6 +2,7 @@ package work.socialhub.kxweb.internal
 
 import work.socialhub.kxweb.XWeb
 import work.socialhub.kxweb.XWebConfig
+import work.socialhub.kxweb.api.AccountResource
 import work.socialhub.kxweb.api.BookmarkResource
 import work.socialhub.kxweb.api.EngagementResource
 import work.socialhub.kxweb.api.ExploreResource
@@ -19,6 +20,7 @@ class XWebImpl(
     config: XWebConfig
 ) : XWeb {
 
+    private val account: AccountResource = AccountResourceImpl(config)
     private val search: SearchResource = SearchResourceImpl(config)
     private val tweet: TweetResource = TweetResourceImpl(config)
     private val home: HomeResource = HomeResourceImpl(config)
@@ -32,6 +34,7 @@ class XWebImpl(
     private val explore: ExploreResource = ExploreResourceImpl(config)
     private val timeline: TimelineResource = TimelineResourceImpl(config)
 
+    override fun account() = account
     override fun search() = search
     override fun tweet() = tweet
     override fun home() = home
