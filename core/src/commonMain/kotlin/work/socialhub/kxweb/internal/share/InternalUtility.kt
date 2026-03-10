@@ -135,12 +135,20 @@ object InternalUtility {
         it.header("origin", "https://x.com")
         it.header("referer", "https://x.com/")
 
-        val authToken = config.authToken
         val csrfToken = config.csrfToken
-        if (authToken != null && csrfToken != null) {
+        if (csrfToken != null) {
             it.header("x-csrf-token", csrfToken)
             it.header("x-twitter-auth-type", "OAuth2Session")
-            it.header("cookie", "auth_token=$authToken; ct0=$csrfToken")
+        }
+
+        val cookieString = config.cookieString
+        if (cookieString != null) {
+            it.header("cookie", cookieString)
+        } else {
+            val authToken = config.authToken
+            if (authToken != null && csrfToken != null) {
+                it.header("cookie", "auth_token=$authToken; ct0=$csrfToken")
+            }
         }
     }
 

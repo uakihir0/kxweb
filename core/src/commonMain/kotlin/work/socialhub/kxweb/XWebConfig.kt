@@ -58,4 +58,17 @@ open class XWebConfig {
      * Specifies a socket timeout (read and write) in milliseconds.
      */
     var socketTimeoutMillis: Long? = null
+
+    /**
+     * Full browser cookie string.
+     * When set, this is sent as the Cookie header directly,
+     * overriding the auth_token/ct0 individual fields for the cookie header.
+     * auth_token and csrfToken are still used for x-csrf-token header.
+     */
+    var cookieString: String? = null
+
+    /**
+     * Enable x-client-transaction-id header generation.
+     */
+    var enableClientTransaction: Boolean = false
 }
