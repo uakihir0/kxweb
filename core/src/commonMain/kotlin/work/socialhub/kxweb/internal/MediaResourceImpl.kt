@@ -97,7 +97,7 @@ class MediaResourceImpl(
             .param("command", "APPEND")
             .param("media_id", mediaId)
             .param("segment_index", segmentIndex.toString())
-            .file("media_data", chunk, "blob")
+            .file("media_data", "blob", chunk)
             .withCookieHeaders(config)
 
         val response = httpRequest.post()
