@@ -150,6 +150,10 @@ object InternalUtility {
                 it.header("cookie", "auth_token=$authToken; ct0=$csrfToken")
             }
         }
+
+        if (config.enableClientTransaction) {
+            it.header("x-client-transaction-id", generateClientTransactionId())
+        }
     }
 
     /**
@@ -605,5 +609,54 @@ object InternalUtility {
     ): String {
         val featuresJson = features.entries.joinToString(",") { (k, v) -> "\"$k\":$v" }
         return """{"variables":$variables,"features":{$featuresJson},"queryId":"$queryId"}"""
+    }
+
+    /**
+     * Execute a GraphQL operation with automatic QueryId retry on 404.
+     * If the initial call returns 404, resolves a fresh QueryId from JS bundles and retries.
+     */
+    suspend fun <T> withQueryIdRetry(
+        operationName: String,
+        queryId: String,
+        execute: suspend (resolvedQueryId: String) -> T,
+    ): T {
+        return try {
+            execute(queryId)
+        } catch (e: XWebException) {
+            if (e.status == 404) {
+                val newQueryId = QueryIdResolver.resolve(operationName, queryId)
+                if (newQueryId != queryId) {
+                    execute(newQueryId)
+                } else {
+                    throw e
+                }
+            } else {
+                throw e
+            }
+        }
+    }
+
+    /**
+     * Generate a simple client transaction ID.
+     */
+    fun generateClientTransactionId(): String {
+        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+        return (1..20).map { chars.random() }.joinToString("")
+    }
+
+    /**
+     * Apply client transaction header if enabled.
+     */
+    fun HttpRequest.withClientTransaction(config: XWebConfig): HttpRequest = also {
+        if (config.enableClientTransaction) {
+            it.header("x-client-transaction-id", generateClientTransactionId())
+        }
+    }
+
+    /**
+     * Build a REST API URL.
+     */
+    fun restApiUrl(path: String): String {
+        return "${Service.X_REST_API.uri}$path"
     }
 }
