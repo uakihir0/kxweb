@@ -9,7 +9,7 @@ import work.socialhub.kxweb.util.OAuth1Util
 import work.socialhub.khttpclient.HttpRequest
 import work.socialhub.khttpclient.HttpResponse
 
-object _InternalUtility {
+object InternalUtility {
 
     /**
      * Public Bearer Token for X (Twitter) web API.

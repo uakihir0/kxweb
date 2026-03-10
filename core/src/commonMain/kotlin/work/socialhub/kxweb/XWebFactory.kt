@@ -1,6 +1,6 @@
 package work.socialhub.kxweb
 
-import work.socialhub.kxweb.internal._XWeb
+import work.socialhub.kxweb.internal.XWebImpl
 import kotlin.js.JsExport
 import kotlin.js.JsName
 
@@ -9,7 +9,7 @@ object XWebFactory {
 
     @JsName("instanceFromConfig")
     fun instance(config: XWebConfig = XWebConfig()): XWeb {
-        return _XWeb(config)
+        return XWebImpl(config)
     }
 
     /**
@@ -19,7 +19,7 @@ object XWebFactory {
      */
     @JsName("instanceFromCookies")
     fun instance(authToken: String, csrfToken: String): XWeb {
-        return _XWeb(
+        return XWebImpl(
             XWebConfig().also {
                 it.authToken = authToken
                 it.csrfToken = csrfToken
@@ -33,7 +33,7 @@ object XWebFactory {
      */
     @JsName("instanceFromOAuth")
     fun instanceOAuth(oauthToken: String, oauthSecret: String): XWeb {
-        return _XWeb(
+        return XWebImpl(
             XWebConfig().also {
                 it.oauthToken = oauthToken
                 it.oauthSecret = oauthSecret
