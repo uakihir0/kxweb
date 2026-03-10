@@ -9,15 +9,19 @@ import work.socialhub.kxweb.entity.bookmark.BookmarkFolderTimelineRequest
 import work.socialhub.kxweb.entity.bookmark.BookmarkRequest
 import work.socialhub.kxweb.entity.bookmark.GetBookmarksRequest
 import work.socialhub.kxweb.entity.bookmark.GetBookmarksResponse
+import work.socialhub.kxweb.entity.bookmark.SearchBookmarksRequest
+import work.socialhub.kxweb.entity.search.SearchSearchResponse
 import work.socialhub.kxweb.entity.share.Response
 import work.socialhub.kxweb.internal.entity.GraphQLBookmarksRoot
 import work.socialhub.kxweb.internal.entity.GraphQLMutationRoot
+import work.socialhub.kxweb.internal.entity.GraphQLSearchRoot
 import work.socialhub.kxweb.internal.share.InternalUtility
 import work.socialhub.kxweb.internal.share.InternalUtility.bookmarksFeatures
 import work.socialhub.kxweb.internal.share.InternalUtility.fromJson
 import work.socialhub.kxweb.internal.share.InternalUtility.graphqlPostBody
 import work.socialhub.kxweb.internal.share.InternalUtility.graphqlUrl
 import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
+import work.socialhub.kxweb.internal.share.InternalUtility.searchFeatures
 import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
 import work.socialhub.kxweb.internal.share.InternalUtility.withAuthHeaders
 import work.socialhub.kxweb.internal.share.TweetParser
@@ -73,6 +77,62 @@ class BookmarkResourceImpl(
     override fun getBookmarksBlocking(
         request: GetBookmarksRequest
     ): Response<GetBookmarksResponse> = toBlocking { getBookmarks(request) }
+
+    override suspend fun searchBookmarks(
+        request: SearchBookmarksRequest
+    ): Response<SearchSearchResponse> {
+        val url = graphqlUrl(config, QueryId.SEARCH_TIMELINE, "SearchTimeline")
+
+        val rawQuery = "${request.query ?: ""} filter:bookmarks"
+        val variables = buildJsonObject {
+            put("rawQuery", rawQuery.trim())
+            put("count", request.count)
+            put("querySource", "typed_query")
+            put("product", "Latest")
+            request.cursor?.let { put("cursor", it) }
+        }
+
+        val features = buildJsonObject {
+            searchFeatures().forEach { (k, v) -> put(k, v) }
+        }
+
+        val variablesStr = variables.toString()
+        val featuresStr = features.toString()
+        val queryParams = mapOf("variables" to variablesStr, "features" to featuresStr)
+
+        val httpRequest = httpRequest(config)
+            .url(url)
+            .setTimeouts(config)
+            .query("variables", variablesStr)
+            .query("features", featuresStr)
+            .withAuthHeaders(config, "GET", url, queryParams)
+
+        val response = httpRequest.get()
+        val body = response.stringBody
+
+        if (response.status !in 200..299) {
+            throw InternalUtility.handleError(null, response.status, body)
+        }
+
+        val graphQLResponse = fromJson<GraphQLSearchRoot>(body)
+        val instructions = graphQLResponse.data
+            ?.searchByRawQuery
+            ?.searchTimeline
+            ?.timeline
+            ?.instructions
+            ?: return Response(SearchSearchResponse(), body)
+
+        val result = TweetParser.parseTimelineInstructions(instructions)
+
+        return Response(
+            SearchSearchResponse(tweets = result.tweets, cursor = result.cursor),
+            body,
+        )
+    }
+
+    override fun searchBookmarksBlocking(
+        request: SearchBookmarksRequest
+    ): Response<SearchSearchResponse> = toBlocking { searchBookmarks(request) }
 
     override suspend fun bookmark(
         request: BookmarkRequest

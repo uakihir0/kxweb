@@ -4,6 +4,8 @@ import work.socialhub.kxweb.entity.bookmark.BookmarkFolderTimelineRequest
 import work.socialhub.kxweb.entity.bookmark.BookmarkRequest
 import work.socialhub.kxweb.entity.bookmark.GetBookmarksRequest
 import work.socialhub.kxweb.entity.bookmark.GetBookmarksResponse
+import work.socialhub.kxweb.entity.bookmark.SearchBookmarksRequest
+import work.socialhub.kxweb.entity.search.SearchSearchResponse
 import work.socialhub.kxweb.entity.share.Response
 import work.socialhub.kxweb.model.MutationResult
 import kotlin.js.JsExport
@@ -15,6 +17,11 @@ interface BookmarkResource {
 
     @JsExport.Ignore
     fun getBookmarksBlocking(request: GetBookmarksRequest): Response<GetBookmarksResponse>
+
+    suspend fun searchBookmarks(request: SearchBookmarksRequest): Response<SearchSearchResponse>
+
+    @JsExport.Ignore
+    fun searchBookmarksBlocking(request: SearchBookmarksRequest): Response<SearchSearchResponse>
 
     suspend fun bookmark(request: BookmarkRequest): Response<MutationResult>
 

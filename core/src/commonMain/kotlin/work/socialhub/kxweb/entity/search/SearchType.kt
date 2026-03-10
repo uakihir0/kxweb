@@ -10,4 +10,6 @@ enum class SearchType(
     TOP("Top"),
     PEOPLE("People"),
     MEDIA("Media"),
+    PHOTOS("Photos"),
+    VIDEOS("Videos"),
 }

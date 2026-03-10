@@ -28,8 +28,9 @@ class ExploreResourceImpl(
     ): Response<GetNewsResponse> {
         val url = graphqlUrl(config, QueryId.GENERIC_TIMELINE_BY_ID, "GenericTimelineById")
 
+        val timelineId = request.tab?.timelineId ?: "trends_for_you"
         val variables = buildJsonObject {
-            put("timelineId", "trends_for_you")
+            put("timelineId", timelineId)
             put("count", request.count)
             request.cursor?.let { put("cursor", it) }
         }

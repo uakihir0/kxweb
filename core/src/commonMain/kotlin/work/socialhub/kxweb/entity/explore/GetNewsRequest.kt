@@ -6,4 +6,5 @@ import kotlin.js.JsExport
 class GetNewsRequest {
     var count: Int = 20
     var cursor: String? = null
+    var tab: ExploreTab? = null
 }
