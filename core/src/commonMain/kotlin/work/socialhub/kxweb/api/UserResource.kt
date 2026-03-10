@@ -1,8 +1,11 @@
 package work.socialhub.kxweb.api
 
 import work.socialhub.kxweb.entity.share.Response
+import work.socialhub.kxweb.entity.user.AboutAccountResponse
 import work.socialhub.kxweb.entity.user.FollowingRequest
 import work.socialhub.kxweb.entity.user.FollowingResponse
+import work.socialhub.kxweb.entity.user.GetUserAboutAccountRequest
+import work.socialhub.kxweb.entity.user.GetUserIdByUsernameRequest
 import work.socialhub.kxweb.entity.user.UserByScreenNameRequest
 import work.socialhub.kxweb.entity.user.UserTweetsRequest
 import work.socialhub.kxweb.entity.user.UserTweetsResponse
@@ -20,6 +23,24 @@ interface UserResource {
     fun getUserByScreenNameBlocking(
         request: UserByScreenNameRequest
     ): Response<User>
+
+    suspend fun getUserIdByUsername(
+        request: GetUserIdByUsernameRequest
+    ): Response<User>
+
+    @JsExport.Ignore
+    fun getUserIdByUsernameBlocking(
+        request: GetUserIdByUsernameRequest
+    ): Response<User>
+
+    suspend fun getUserAboutAccount(
+        request: GetUserAboutAccountRequest
+    ): Response<AboutAccountResponse>
+
+    @JsExport.Ignore
+    fun getUserAboutAccountBlocking(
+        request: GetUserAboutAccountRequest
+    ): Response<AboutAccountResponse>
 
     suspend fun getUserTweets(
         request: UserTweetsRequest

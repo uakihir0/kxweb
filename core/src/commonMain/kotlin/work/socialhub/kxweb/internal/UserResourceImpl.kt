@@ -6,11 +6,15 @@ import work.socialhub.kxweb.XWebConfig
 import work.socialhub.kxweb.api.UserResource
 import work.socialhub.kxweb.domain.QueryId
 import work.socialhub.kxweb.entity.share.Response
+import work.socialhub.kxweb.entity.user.AboutAccountResponse
 import work.socialhub.kxweb.entity.user.FollowingRequest
 import work.socialhub.kxweb.entity.user.FollowingResponse
+import work.socialhub.kxweb.entity.user.GetUserAboutAccountRequest
+import work.socialhub.kxweb.entity.user.GetUserIdByUsernameRequest
 import work.socialhub.kxweb.entity.user.UserByScreenNameRequest
 import work.socialhub.kxweb.entity.user.UserTweetsRequest
 import work.socialhub.kxweb.entity.user.UserTweetsResponse
+import work.socialhub.kxweb.internal.entity.GraphQLAboutAccountRoot
 import work.socialhub.kxweb.internal.entity.GraphQLFollowingRoot
 import work.socialhub.kxweb.internal.entity.GraphQLUserByScreenNameRoot
 import work.socialhub.kxweb.internal.entity.GraphQLUserTweetsRoot
@@ -24,6 +28,7 @@ import work.socialhub.kxweb.internal.share.InternalUtility.userByScreenNameFeatu
 import work.socialhub.kxweb.internal.share.InternalUtility.userTweetsFeatures
 import work.socialhub.kxweb.internal.share.InternalUtility.withAuthHeaders
 import work.socialhub.kxweb.internal.share.TweetParser
+import work.socialhub.kxweb.model.AboutAccount
 import work.socialhub.kxweb.model.User
 import work.socialhub.kxweb.util.toBlocking
 
@@ -73,6 +78,65 @@ class UserResourceImpl(
     override fun getUserByScreenNameBlocking(
         request: UserByScreenNameRequest
     ): Response<User> = toBlocking { getUserByScreenName(request) }
+
+    override suspend fun getUserIdByUsername(
+        request: GetUserIdByUsernameRequest
+    ): Response<User> {
+        val screenNameReq = UserByScreenNameRequest().also {
+            it.screenName = request.username
+        }
+        return getUserByScreenName(screenNameReq)
+    }
+
+    override fun getUserIdByUsernameBlocking(
+        request: GetUserIdByUsernameRequest
+    ): Response<User> = toBlocking { getUserIdByUsername(request) }
+
+    override suspend fun getUserAboutAccount(
+        request: GetUserAboutAccountRequest
+    ): Response<AboutAccountResponse> {
+        val url = graphqlUrl(config, QueryId.ABOUT_ACCOUNT_QUERY, "AboutAccountQuery")
+
+        val variables = buildJsonObject {
+            request.screenName?.let { put("screen_name", it) }
+        }
+
+        val variablesStr = variables.toString()
+        val queryParams = mapOf("variables" to variablesStr)
+
+        val httpRequest = httpRequest(config)
+            .url(url)
+            .setTimeouts(config)
+            .query("variables", variablesStr)
+            .withAuthHeaders(config, "GET", url, queryParams)
+
+        val response = httpRequest.get()
+        val body = response.stringBody
+
+        if (response.status !in 200..299) {
+            throw InternalUtility.handleError(null, response.status, body)
+        }
+
+        val root = fromJson<GraphQLAboutAccountRoot>(body)
+        val aboutProfile = root.data?.user_result_by_screen_name?.result?.about_profile
+
+        val aboutAccount = if (aboutProfile != null) {
+            AboutAccount(
+                id = aboutProfile.id,
+                createdAt = aboutProfile.created_at,
+                location = aboutProfile.location,
+                description = aboutProfile.description,
+            )
+        } else {
+            null
+        }
+
+        return Response(AboutAccountResponse(aboutAccount = aboutAccount), body)
+    }
+
+    override fun getUserAboutAccountBlocking(
+        request: GetUserAboutAccountRequest
+    ): Response<AboutAccountResponse> = toBlocking { getUserAboutAccount(request) }
 
     override suspend fun getUserTweets(
         request: UserTweetsRequest

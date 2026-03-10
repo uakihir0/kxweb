@@ -6,6 +6,10 @@ import work.socialhub.kxweb.XWebConfig
 import work.socialhub.kxweb.api.TweetResource
 import work.socialhub.kxweb.domain.QueryId
 import work.socialhub.kxweb.entity.share.Response
+import work.socialhub.kxweb.entity.tweet.GetRepliesRequest
+import work.socialhub.kxweb.entity.tweet.GetRepliesResponse
+import work.socialhub.kxweb.entity.tweet.GetThreadRequest
+import work.socialhub.kxweb.entity.tweet.GetThreadResponse
 import work.socialhub.kxweb.entity.tweet.TweetDetailRequest
 import work.socialhub.kxweb.entity.tweet.TweetDetailResponse
 import work.socialhub.kxweb.internal.entity.GraphQLTweetDetailRoot
@@ -128,4 +132,54 @@ class TweetResourceImpl(
     override fun getTweetDetailBlocking(
         request: TweetDetailRequest
     ): Response<TweetDetailResponse> = toBlocking { getTweetDetail(request) }
+
+    override suspend fun getReplies(
+        request: GetRepliesRequest
+    ): Response<GetRepliesResponse> {
+        val detailRequest = TweetDetailRequest().also {
+            it.tweetId = request.tweetId
+            it.cursor = request.cursor
+        }
+        val detailResponse = getTweetDetail(detailRequest)
+
+        val replies = detailResponse.data.tweets.filter { tweet ->
+            tweet.inReplyToStatusId == request.tweetId
+        }
+
+        return Response(
+            GetRepliesResponse(replies = replies, cursor = detailResponse.data.cursor),
+            detailResponse.json,
+        )
+    }
+
+    override fun getRepliesBlocking(
+        request: GetRepliesRequest
+    ): Response<GetRepliesResponse> = toBlocking { getReplies(request) }
+
+    override suspend fun getThread(
+        request: GetThreadRequest
+    ): Response<GetThreadResponse> {
+        val detailRequest = TweetDetailRequest().also {
+            it.tweetId = request.tweetId
+            it.cursor = request.cursor
+        }
+        val detailResponse = getTweetDetail(detailRequest)
+
+        val allTweets = detailResponse.data.tweets
+        val focalTweet = allTweets.find { it.id == request.tweetId }
+        val conversationId = focalTweet?.conversationId ?: request.tweetId
+
+        val threadTweets = allTweets
+            .filter { it.conversationId == conversationId }
+            .sortedBy { it.createdAt }
+
+        return Response(
+            GetThreadResponse(tweets = threadTweets, cursor = detailResponse.data.cursor),
+            detailResponse.json,
+        )
+    }
+
+    override fun getThreadBlocking(
+        request: GetThreadRequest
+    ): Response<GetThreadResponse> = toBlocking { getThread(request) }
 }
