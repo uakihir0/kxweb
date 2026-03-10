@@ -255,9 +255,6 @@ object InternalUtility {
 
     /**
      * Feature flags required for SearchTimeline GraphQL requests.
-     * These flags are sent with the request to control response format.
-     *
-     * Reference: bird project twitter-client-features.ts, Nitter consts.nim
      */
     fun searchFeatures(): Map<String, Boolean> = mapOf(
         "rweb_tipjar_consumption_enabled" to true,
@@ -284,4 +281,321 @@ object InternalUtility {
         "longform_notetweets_inline_media_enabled" to true,
         "responsive_web_enhance_cards_enabled" to false,
     )
+
+    /**
+     * Feature flags for HomeTimeline / HomeLatestTimeline.
+     */
+    fun homeTimelineFeatures(): Map<String, Boolean> = mapOf(
+        "rweb_tipjar_consumption_enabled" to true,
+        "responsive_web_graphql_exclude_directive_enabled" to true,
+        "verified_phone_label_enabled" to false,
+        "creator_subscriptions_tweet_preview_api_enabled" to true,
+        "responsive_web_graphql_timeline_navigation_enabled" to true,
+        "responsive_web_graphql_skip_user_profile_image_extensions_enabled" to false,
+        "communities_web_enable_tweet_community_results_fetch" to true,
+        "c9s_tweet_anatomy_moderator_badge_enabled" to true,
+        "articles_preview_enabled" to true,
+        "responsive_web_edit_tweet_api_enabled" to true,
+        "graphql_is_translatable_rweb_tweet_is_translatable_enabled" to true,
+        "view_counts_everywhere_api_enabled" to true,
+        "longform_notetweets_consumption_enabled" to true,
+        "responsive_web_twitter_article_tweet_consumption_enabled" to true,
+        "tweet_awards_web_tipping_enabled" to false,
+        "creator_subscriptions_quote_tweet_preview_enabled" to false,
+        "freedom_of_speech_not_reach_fetch_enabled" to true,
+        "standardized_nudges_misinfo" to true,
+        "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled" to true,
+        "rweb_video_timestamps_enabled" to true,
+        "longform_notetweets_rich_text_read_enabled" to true,
+        "longform_notetweets_inline_media_enabled" to true,
+        "responsive_web_enhance_cards_enabled" to false,
+    )
+
+    /**
+     * Feature flags for TweetDetail (conversation thread).
+     */
+    fun tweetDetailFeatures(): Map<String, Boolean> = mapOf(
+        "rweb_tipjar_consumption_enabled" to true,
+        "responsive_web_graphql_exclude_directive_enabled" to true,
+        "verified_phone_label_enabled" to false,
+        "creator_subscriptions_tweet_preview_api_enabled" to true,
+        "responsive_web_graphql_timeline_navigation_enabled" to true,
+        "responsive_web_graphql_skip_user_profile_image_extensions_enabled" to false,
+        "communities_web_enable_tweet_community_results_fetch" to true,
+        "c9s_tweet_anatomy_moderator_badge_enabled" to true,
+        "articles_preview_enabled" to true,
+        "responsive_web_edit_tweet_api_enabled" to true,
+        "graphql_is_translatable_rweb_tweet_is_translatable_enabled" to true,
+        "view_counts_everywhere_api_enabled" to true,
+        "longform_notetweets_consumption_enabled" to true,
+        "responsive_web_twitter_article_tweet_consumption_enabled" to true,
+        "tweet_awards_web_tipping_enabled" to false,
+        "creator_subscriptions_quote_tweet_preview_enabled" to false,
+        "freedom_of_speech_not_reach_fetch_enabled" to true,
+        "standardized_nudges_misinfo" to true,
+        "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled" to true,
+        "rweb_video_timestamps_enabled" to true,
+        "longform_notetweets_rich_text_read_enabled" to true,
+        "longform_notetweets_inline_media_enabled" to true,
+        "responsive_web_enhance_cards_enabled" to false,
+    )
+
+    /**
+     * Feature flags for UserByScreenName.
+     */
+    fun userByScreenNameFeatures(): Map<String, Boolean> = mapOf(
+        "hidden_profile_subscriptions_enabled" to true,
+        "rweb_tipjar_consumption_enabled" to true,
+        "responsive_web_graphql_exclude_directive_enabled" to true,
+        "verified_phone_label_enabled" to false,
+        "subscriptions_verification_info_is_identity_verified_enabled" to true,
+        "subscriptions_verification_info_verified_since_enabled" to true,
+        "highlights_tweets_tab_ui_enabled" to true,
+        "responsive_web_twitter_article_notes_tab_enabled" to true,
+        "subscriptions_feature_can_gift_premium" to true,
+        "creator_subscriptions_tweet_preview_api_enabled" to true,
+        "responsive_web_graphql_skip_user_profile_image_extensions_enabled" to false,
+        "responsive_web_graphql_timeline_navigation_enabled" to true,
+    )
+
+    /**
+     * Feature flags for UserTweets.
+     */
+    fun userTweetsFeatures(): Map<String, Boolean> = mapOf(
+        "rweb_tipjar_consumption_enabled" to true,
+        "responsive_web_graphql_exclude_directive_enabled" to true,
+        "verified_phone_label_enabled" to false,
+        "creator_subscriptions_tweet_preview_api_enabled" to true,
+        "responsive_web_graphql_timeline_navigation_enabled" to true,
+        "responsive_web_graphql_skip_user_profile_image_extensions_enabled" to false,
+        "communities_web_enable_tweet_community_results_fetch" to true,
+        "c9s_tweet_anatomy_moderator_badge_enabled" to true,
+        "articles_preview_enabled" to true,
+        "responsive_web_edit_tweet_api_enabled" to true,
+        "graphql_is_translatable_rweb_tweet_is_translatable_enabled" to true,
+        "view_counts_everywhere_api_enabled" to true,
+        "longform_notetweets_consumption_enabled" to true,
+        "responsive_web_twitter_article_tweet_consumption_enabled" to true,
+        "tweet_awards_web_tipping_enabled" to false,
+        "creator_subscriptions_quote_tweet_preview_enabled" to false,
+        "freedom_of_speech_not_reach_fetch_enabled" to true,
+        "standardized_nudges_misinfo" to true,
+        "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled" to true,
+        "rweb_video_timestamps_enabled" to true,
+        "longform_notetweets_rich_text_read_enabled" to true,
+        "longform_notetweets_inline_media_enabled" to true,
+        "responsive_web_enhance_cards_enabled" to false,
+    )
+
+    /**
+     * Feature flags for Following / Followers.
+     */
+    fun followingFeatures(): Map<String, Boolean> = mapOf(
+        "rweb_tipjar_consumption_enabled" to true,
+        "responsive_web_graphql_exclude_directive_enabled" to true,
+        "verified_phone_label_enabled" to false,
+        "creator_subscriptions_tweet_preview_api_enabled" to true,
+        "responsive_web_graphql_timeline_navigation_enabled" to true,
+        "responsive_web_graphql_skip_user_profile_image_extensions_enabled" to false,
+        "communities_web_enable_tweet_community_results_fetch" to true,
+        "c9s_tweet_anatomy_moderator_badge_enabled" to true,
+        "articles_preview_enabled" to true,
+        "responsive_web_edit_tweet_api_enabled" to true,
+        "graphql_is_translatable_rweb_tweet_is_translatable_enabled" to true,
+        "view_counts_everywhere_api_enabled" to true,
+        "longform_notetweets_consumption_enabled" to true,
+        "responsive_web_twitter_article_tweet_consumption_enabled" to true,
+        "tweet_awards_web_tipping_enabled" to false,
+        "creator_subscriptions_quote_tweet_preview_enabled" to false,
+        "freedom_of_speech_not_reach_fetch_enabled" to true,
+        "standardized_nudges_misinfo" to true,
+        "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled" to true,
+        "rweb_video_timestamps_enabled" to true,
+        "longform_notetweets_rich_text_read_enabled" to true,
+        "longform_notetweets_inline_media_enabled" to true,
+        "responsive_web_enhance_cards_enabled" to false,
+    )
+
+    /**
+     * Feature flags for Lists (ownerships, memberships, timeline).
+     */
+    fun listsFeatures(): Map<String, Boolean> = mapOf(
+        "rweb_tipjar_consumption_enabled" to true,
+        "responsive_web_graphql_exclude_directive_enabled" to true,
+        "verified_phone_label_enabled" to false,
+        "creator_subscriptions_tweet_preview_api_enabled" to true,
+        "responsive_web_graphql_timeline_navigation_enabled" to true,
+        "responsive_web_graphql_skip_user_profile_image_extensions_enabled" to false,
+        "communities_web_enable_tweet_community_results_fetch" to true,
+        "c9s_tweet_anatomy_moderator_badge_enabled" to true,
+        "articles_preview_enabled" to true,
+        "responsive_web_edit_tweet_api_enabled" to true,
+        "graphql_is_translatable_rweb_tweet_is_translatable_enabled" to true,
+        "view_counts_everywhere_api_enabled" to true,
+        "longform_notetweets_consumption_enabled" to true,
+        "responsive_web_twitter_article_tweet_consumption_enabled" to true,
+        "tweet_awards_web_tipping_enabled" to false,
+        "creator_subscriptions_quote_tweet_preview_enabled" to false,
+        "freedom_of_speech_not_reach_fetch_enabled" to true,
+        "standardized_nudges_misinfo" to true,
+        "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled" to true,
+        "rweb_video_timestamps_enabled" to true,
+        "longform_notetweets_rich_text_read_enabled" to true,
+        "longform_notetweets_inline_media_enabled" to true,
+        "responsive_web_enhance_cards_enabled" to false,
+    )
+
+    /**
+     * Feature flags for Bookmarks.
+     */
+    fun bookmarksFeatures(): Map<String, Boolean> = mapOf(
+        "graphql_timeline_v2_bookmark_timeline" to true,
+        "rweb_tipjar_consumption_enabled" to true,
+        "responsive_web_graphql_exclude_directive_enabled" to true,
+        "verified_phone_label_enabled" to false,
+        "creator_subscriptions_tweet_preview_api_enabled" to true,
+        "responsive_web_graphql_timeline_navigation_enabled" to true,
+        "responsive_web_graphql_skip_user_profile_image_extensions_enabled" to false,
+        "communities_web_enable_tweet_community_results_fetch" to true,
+        "c9s_tweet_anatomy_moderator_badge_enabled" to true,
+        "articles_preview_enabled" to true,
+        "responsive_web_edit_tweet_api_enabled" to true,
+        "graphql_is_translatable_rweb_tweet_is_translatable_enabled" to true,
+        "view_counts_everywhere_api_enabled" to true,
+        "longform_notetweets_consumption_enabled" to true,
+        "responsive_web_twitter_article_tweet_consumption_enabled" to true,
+        "tweet_awards_web_tipping_enabled" to false,
+        "creator_subscriptions_quote_tweet_preview_enabled" to false,
+        "freedom_of_speech_not_reach_fetch_enabled" to true,
+        "standardized_nudges_misinfo" to true,
+        "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled" to true,
+        "rweb_video_timestamps_enabled" to true,
+        "longform_notetweets_rich_text_read_enabled" to true,
+        "longform_notetweets_inline_media_enabled" to true,
+        "responsive_web_enhance_cards_enabled" to false,
+    )
+
+    /**
+     * Feature flags for Likes timeline.
+     */
+    fun likesFeatures(): Map<String, Boolean> = mapOf(
+        "rweb_tipjar_consumption_enabled" to true,
+        "responsive_web_graphql_exclude_directive_enabled" to true,
+        "verified_phone_label_enabled" to false,
+        "creator_subscriptions_tweet_preview_api_enabled" to true,
+        "responsive_web_graphql_timeline_navigation_enabled" to true,
+        "responsive_web_graphql_skip_user_profile_image_extensions_enabled" to false,
+        "communities_web_enable_tweet_community_results_fetch" to true,
+        "c9s_tweet_anatomy_moderator_badge_enabled" to true,
+        "articles_preview_enabled" to true,
+        "responsive_web_edit_tweet_api_enabled" to true,
+        "graphql_is_translatable_rweb_tweet_is_translatable_enabled" to true,
+        "view_counts_everywhere_api_enabled" to true,
+        "longform_notetweets_consumption_enabled" to true,
+        "responsive_web_twitter_article_tweet_consumption_enabled" to true,
+        "tweet_awards_web_tipping_enabled" to false,
+        "creator_subscriptions_quote_tweet_preview_enabled" to false,
+        "freedom_of_speech_not_reach_fetch_enabled" to true,
+        "standardized_nudges_misinfo" to true,
+        "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled" to true,
+        "rweb_video_timestamps_enabled" to true,
+        "longform_notetweets_rich_text_read_enabled" to true,
+        "longform_notetweets_inline_media_enabled" to true,
+        "responsive_web_enhance_cards_enabled" to false,
+    )
+
+    /**
+     * Feature flags for Explore / News (GenericTimelineById).
+     */
+    fun exploreFeatures(): Map<String, Boolean> = mapOf(
+        "rweb_tipjar_consumption_enabled" to true,
+        "responsive_web_graphql_exclude_directive_enabled" to true,
+        "verified_phone_label_enabled" to false,
+        "creator_subscriptions_tweet_preview_api_enabled" to true,
+        "responsive_web_graphql_timeline_navigation_enabled" to true,
+        "responsive_web_graphql_skip_user_profile_image_extensions_enabled" to false,
+        "communities_web_enable_tweet_community_results_fetch" to true,
+        "c9s_tweet_anatomy_moderator_badge_enabled" to true,
+        "articles_preview_enabled" to true,
+        "responsive_web_edit_tweet_api_enabled" to true,
+        "graphql_is_translatable_rweb_tweet_is_translatable_enabled" to true,
+        "view_counts_everywhere_api_enabled" to true,
+        "longform_notetweets_consumption_enabled" to true,
+        "responsive_web_twitter_article_tweet_consumption_enabled" to true,
+        "tweet_awards_web_tipping_enabled" to false,
+        "creator_subscriptions_quote_tweet_preview_enabled" to false,
+        "freedom_of_speech_not_reach_fetch_enabled" to true,
+        "standardized_nudges_misinfo" to true,
+        "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled" to true,
+        "rweb_video_timestamps_enabled" to true,
+        "longform_notetweets_rich_text_read_enabled" to true,
+        "longform_notetweets_inline_media_enabled" to true,
+        "responsive_web_enhance_cards_enabled" to false,
+    )
+
+    /**
+     * Feature flags for CreateTweet mutation.
+     */
+    fun tweetCreateFeatures(): Map<String, Boolean> = mapOf(
+        "communities_web_enable_tweet_community_results_fetch" to true,
+        "c9s_tweet_anatomy_moderator_badge_enabled" to true,
+        "responsive_web_edit_tweet_api_enabled" to true,
+        "graphql_is_translatable_rweb_tweet_is_translatable_enabled" to true,
+        "view_counts_everywhere_api_enabled" to true,
+        "longform_notetweets_consumption_enabled" to true,
+        "responsive_web_twitter_article_tweet_consumption_enabled" to true,
+        "tweet_awards_web_tipping_enabled" to false,
+        "creator_subscriptions_quote_tweet_preview_enabled" to false,
+        "longform_notetweets_rich_text_read_enabled" to true,
+        "longform_notetweets_inline_media_enabled" to true,
+        "articles_preview_enabled" to true,
+        "rweb_video_timestamps_enabled" to true,
+        "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled" to true,
+        "responsive_web_graphql_exclude_directive_enabled" to true,
+        "verified_phone_label_enabled" to false,
+        "freedom_of_speech_not_reach_fetch_enabled" to true,
+        "standardized_nudges_misinfo" to true,
+        "responsive_web_graphql_skip_user_profile_image_extensions_enabled" to false,
+        "responsive_web_graphql_timeline_navigation_enabled" to true,
+        "responsive_web_enhance_cards_enabled" to false,
+    )
+
+    /**
+     * Apply authenticated headers based on config type (Cookie or OAuth).
+     * For GET requests, pass empty queryParams.
+     */
+    fun HttpRequest.withAuthHeaders(
+        config: XWebConfig,
+        method: String,
+        url: String,
+        queryParams: Map<String, String> = emptyMap(),
+    ): HttpRequest {
+        return if (isOAuth(config)) {
+            withOAuthHeaders(config, method, url, queryParams)
+        } else {
+            withCookieHeaders(config)
+        }
+    }
+
+    /**
+     * Build a GraphQL POST body for mutation endpoints.
+     */
+    fun graphqlPostBody(
+        variables: String,
+        queryId: String,
+    ): String {
+        return """{"variables":$variables,"queryId":"$queryId"}"""
+    }
+
+    /**
+     * Build a GraphQL POST body with features for mutation endpoints.
+     */
+    fun graphqlPostBodyWithFeatures(
+        variables: String,
+        features: Map<String, Boolean>,
+        queryId: String,
+    ): String {
+        val featuresJson = features.entries.joinToString(",") { (k, v) -> "\"$k\":$v" }
+        return """{"variables":$variables,"features":{$featuresJson},"queryId":"$queryId"}"""
+    }
 }
