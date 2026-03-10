@@ -73,6 +73,8 @@ data class ItemContent(
     val itemType: String? = null,
     @SerialName("tweet_results")
     val tweetResults: TweetResults? = null,
+    @SerialName("user_results")
+    val userResults: UserResults? = null,
 )
 
 @Serializable
@@ -141,11 +143,21 @@ data class UserLegacy(
     val description: String? = null,
     @SerialName("profile_image_url_https")
     val profileImageUrlHttps: String? = null,
+    @SerialName("profile_banner_url")
+    val profileBannerUrl: String? = null,
     @SerialName("followers_count")
     val followersCount: Int? = null,
     @SerialName("friends_count")
     val friendsCount: Int? = null,
+    @SerialName("statuses_count")
+    val statusesCount: Int? = null,
+    @SerialName("listed_count")
+    val listedCount: Int? = null,
     val verified: Boolean? = null,
+    @SerialName("created_at")
+    val createdAt: String? = null,
+    val location: String? = null,
+    val url: String? = null,
 )
 
 @Serializable
@@ -160,6 +172,10 @@ data class TweetLegacy(
     val retweetCount: Int? = null,
     @SerialName("favorite_count")
     val favoriteCount: Int? = null,
+    @SerialName("bookmark_count")
+    val bookmarkCount: Int? = null,
+    @SerialName("quote_count")
+    val quoteCount: Int? = null,
     @SerialName("in_reply_to_status_id_str")
     val inReplyToStatusIdStr: String? = null,
     @SerialName("conversation_id_str")

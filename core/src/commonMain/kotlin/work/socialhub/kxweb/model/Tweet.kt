@@ -13,6 +13,8 @@ data class Tweet(
     var replyCount: Int? = null,
     var retweetCount: Int? = null,
     var favoriteCount: Int? = null,
+    var bookmarkCount: Int? = null,
+    var quoteCount: Int? = null,
     var media: List<Media> = emptyList(),
     var viewCount: Long? = null,
     var inReplyToStatusId: String? = null,
