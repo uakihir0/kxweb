@@ -1,0 +1,59 @@
+package work.socialhub.kxweb
+
+import work.socialhub.kxweb.internal.share.QueryIdResolver
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+class QueryIdResolverTest {
+
+    @Test
+    fun testExtractQueryIds() {
+        val jsContent = """
+            e.exports={queryId:"abc123",operationName:"SearchTimeline",metadata:{featureSwitches:[]}}
+            ,{queryId:"def456",operationName:"UserByScreenName",metadata:{featureSwitches:[]}}
+            ,{queryId:"ghi789",operationName:"TweetDetail",metadata:{}}
+        """.trimIndent()
+
+        val result = QueryIdResolver.extractQueryIds(jsContent)
+
+        assertEquals(3, result.size)
+        assertEquals("abc123", result["SearchTimeline"])
+        assertEquals("def456", result["UserByScreenName"])
+        assertEquals("ghi789", result["TweetDetail"])
+    }
+
+    @Test
+    fun testExtractQueryIdsEmpty() {
+        val result = QueryIdResolver.extractQueryIds("var x = 1;")
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun testExtractScriptUrls() {
+        val html = """
+            <html>
+            <script src="https://abs.twimg.com/responsive-web/client-web/main.abc123.js"></script>
+            <script src="https://abs.twimg.com/responsive-web/client-web/vendors~main.def456.js"></script>
+            <script src="https://other.domain.com/bundle.js"></script>
+            </html>
+        """.trimIndent()
+
+        val urls = QueryIdResolver.extractScriptUrls(html)
+
+        assertEquals(2, urls.size)
+        assertTrue(urls.all { it.startsWith("https://abs.twimg.com/responsive-web/client-web") })
+    }
+
+    @Test
+    fun testExtractScriptUrlsEmpty() {
+        val urls = QueryIdResolver.extractScriptUrls("<html><body>Hello</body></html>")
+        assertTrue(urls.isEmpty())
+    }
+
+    @Test
+    fun testInvalidateCache() {
+        QueryIdResolver.invalidateCache()
+        // Should not throw
+    }
+}
