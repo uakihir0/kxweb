@@ -71,4 +71,55 @@ open class XWebConfig {
      * Enable x-client-transaction-id header generation.
      */
     var enableClientTransaction: Boolean = false
+
+    // == Session Pool ==
+
+    /**
+     * Session pool for managing multiple authenticated sessions.
+     * When set, credentials are resolved from the pool instead of
+     * the static authToken/csrfToken/oauthToken/oauthSecret fields.
+     *
+     * @see XWebSessionPool
+     */
+    @JsExport.Ignore
+    var sessionPool: XWebSessionPool? = null
+
+    /**
+     * The currently active session resolved from the pool.
+     * Set internally before each request when using a session pool.
+     * Do not set this manually.
+     */
+    @JsExport.Ignore
+    var currentSession: XWebSession? = null
+
+    /**
+     * Resolve the effective authentication from the session pool (if set)
+     * or from the static config fields.
+     *
+     * @param endpoint The API endpoint name for rate limit selection.
+     * @return A resolved [XWebConfig] snapshot with credentials set.
+     */
+    fun resolveSession(endpoint: String = ""): XWebConfig {
+        val pool = sessionPool ?: return this
+        val session = pool.acquireSession(endpoint) ?: return this
+
+        currentSession = session
+        when (session) {
+            is XWebSession.Cookie -> {
+                authToken = session.authToken
+                csrfToken = session.csrfToken
+                cookieString = session.cookieString
+                oauthToken = null
+                oauthSecret = null
+            }
+            is XWebSession.OAuth -> {
+                oauthToken = session.oauthToken
+                oauthSecret = session.oauthSecret
+                authToken = null
+                csrfToken = null
+                cookieString = null
+            }
+        }
+        return this
+    }
 }

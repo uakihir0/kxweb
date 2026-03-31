@@ -574,14 +574,21 @@ object InternalUtility {
 
     /**
      * Apply authenticated headers based on config type (Cookie or OAuth).
+     * When a session pool is configured, resolves the session from the pool first.
      * For GET requests, pass empty queryParams.
+     *
+     * @param endpoint Optional endpoint name for session pool rate limit selection.
      */
     fun HttpRequest.withAuthHeaders(
         config: XWebConfig,
         method: String,
         url: String,
         queryParams: Map<String, String> = emptyMap(),
+        endpoint: String = "",
     ): HttpRequest {
+        // Resolve session from pool if configured
+        config.resolveSession(endpoint)
+
         return if (isOAuth(config)) {
             withOAuthHeaders(config, method, url, queryParams)
         } else {
