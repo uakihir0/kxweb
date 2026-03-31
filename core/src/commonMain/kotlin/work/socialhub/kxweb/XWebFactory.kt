@@ -58,6 +58,66 @@ object XWebFactory {
         )
     }
 
+    /**
+     * Create an XWeb instance backed by a session pool.
+     * The pool manages multiple sessions and automatically selects
+     * the best available session for each request, handling rate limits.
+     *
+     * Reference: Nitter's session pool pattern (auth.nim)
+     *
+     * Usage:
+     * ```kotlin
+     * val pool = XWebSessionPool(
+     *     listOf(
+     *         XWebSession.cookie(authToken1, csrfToken1),
+     *         XWebSession.cookie(authToken2, csrfToken2),
+     *         XWebSession.oauth(oauthToken1, oauthSecret1),
+     *     )
+     * )
+     * val xweb = XWebFactory.instancePooled(pool)
+     * ```
+     */
+    @JsName("instanceFromPool")
+    fun instancePooled(pool: XWebSessionPool): XWeb {
+        return XWebImpl(
+            XWebConfig().also {
+                it.sessionPool = pool
+            }
+        )
+    }
+
+    /**
+     * Create an XWeb instance backed by a session pool with custom config.
+     * Allows setting timeouts, SSL options, and other config alongside the pool.
+     */
+    @JsName("instanceFromPoolWithConfig")
+    fun instancePooled(pool: XWebSessionPool, config: XWebConfig): XWeb {
+        config.sessionPool = pool
+        return XWebImpl(config)
+    }
+
+    /**
+     * Create an XWeb instance with a session pool from a list of sessions.
+     * Convenience method that creates the pool automatically.
+     */
+    @JsName("instanceFromSessions")
+    fun instancePooled(sessions: List<XWebSession>): XWeb {
+        return instancePooled(XWebSessionPool(sessions))
+    }
+
+    /**
+     * Create an XWeb instance with a session pool loaded from JSONL string.
+     * Compatible with Nitter's sessions.jsonl format.
+     *
+     * Cookie format: {"kind":"cookie","auth_token":"...","ct0":"...","username":"..."}
+     * OAuth format:  {"oauth_token":"...","oauth_token_secret":"..."}
+     */
+    @JsName("instanceFromJsonLines")
+    fun instancePooledFromJsonLines(jsonLines: String): XWeb {
+        val sessions = XWebSession.parseJsonLines(jsonLines)
+        return instancePooled(sessions)
+    }
+
     private fun extractCookieValue(cookieString: String, name: String): String? {
         return cookieString.split(";")
             .map { it.trim() }
