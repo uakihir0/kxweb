@@ -169,8 +169,16 @@ object InternalUtility {
     /**
      * Apply cookie-based authentication headers.
      * Uses public Bearer Token + auth_token/ct0 cookies.
+     *
+     * @param config Authentication configuration.
+     * @param method HTTP method (used for client transaction ID generation).
+     * @param url Full request URL (used for client transaction ID generation).
      */
-    fun HttpRequest.withCookieHeaders(config: XWebConfig): HttpRequest = also {
+    fun HttpRequest.withCookieHeaders(
+        config: XWebConfig,
+        method: String = "GET",
+        url: String = "",
+    ): HttpRequest = also {
         it.header("authorization", "Bearer $BEARER_TOKEN")
         it.header("user-agent", USER_AGENT)
         it.header("x-twitter-active-user", "yes")
@@ -196,7 +204,13 @@ object InternalUtility {
         }
 
         if (config.enableClientTransaction) {
-            it.header("x-client-transaction-id", generateClientTransactionId())
+            // Extract path from URL for transaction ID generation
+            val path = try {
+                val afterScheme = url.substringAfter("://")
+                val pathStart = afterScheme.indexOf('/')
+                if (pathStart >= 0) afterScheme.substring(pathStart).substringBefore('?') else ""
+            } catch (_: Exception) { "" }
+            it.header("x-client-transaction-id", generateClientTransactionId(method, path))
         }
     }
 
@@ -636,7 +650,7 @@ object InternalUtility {
         return if (isOAuth(config)) {
             withOAuthHeaders(config, method, url, queryParams)
         } else {
-            withCookieHeaders(config)
+            withCookieHeaders(config, method, url)
         }
     }
 
@@ -688,11 +702,15 @@ object InternalUtility {
     }
 
     /**
-     * Generate a simple client transaction ID.
+     * Generate a client transaction ID.
+     * Uses the Nitter-style crypto algorithm when pair data is available,
+     * falls back to a simple random string otherwise.
+     *
+     * @param method HTTP method for the request.
+     * @param path URL path for the request.
      */
-    fun generateClientTransactionId(): String {
-        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-        return (1..20).map { chars.random() }.joinToString("")
+    fun generateClientTransactionId(method: String = "GET", path: String = ""): String {
+        return ClientTransactionId.generate(method, path)
     }
 
     /**
