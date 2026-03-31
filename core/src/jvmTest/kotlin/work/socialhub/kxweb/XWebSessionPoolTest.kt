@@ -82,21 +82,20 @@ class XWebSessionPoolTest {
 
     @Test
     fun testRateLimitPrefersHigherRemaining() {
-        val pool = createPool()
-        val sessions = (1..3).map { pool.acquireSession("test")!! }.distinct()
+        val s1 = XWebSession.cookie("auth1", "csrf1", label = "user1")
+        val s2 = XWebSession.cookie("auth2", "csrf2", label = "user2")
+        val s3 = XWebSession.oauth("tok1", "sec1", label = "oauth1")
+        val pool = XWebSessionPool(listOf(s1, s2, s3))
 
         // Give different remaining counts
         val now = kotlinx.datetime.Clock.System.now().epochSeconds + 300
-        pool.updateRateLimit(sessions[0], "test", RateLimit(100, 10, now))
-        pool.updateRateLimit(sessions[1], "test", RateLimit(100, 90, now))
-        if (sessions.size > 2) {
-            pool.updateRateLimit(sessions[2], "test", RateLimit(100, 50, now))
-        }
+        pool.updateRateLimit(s1, "test", RateLimit(100, 10, now))
+        pool.updateRateLimit(s2, "test", RateLimit(100, 90, now))
+        pool.updateRateLimit(s3, "test", RateLimit(100, 50, now))
 
-        // Should prefer the session with most remaining
+        // Should prefer the session with most remaining (s2 = 90)
         val selected = pool.acquireSession("test")!!
         val selectedLimit = pool.getRateLimit(selected, "test")
-        // The selected should be the one with 90 remaining (highest)
         assertNotNull(selectedLimit)
         assertEquals(90, selectedLimit.remaining)
     }
