@@ -15,6 +15,7 @@ import work.socialhub.kxweb.internal.share.InternalUtility.graphqlPostBody
 import work.socialhub.kxweb.internal.share.InternalUtility.graphqlUrl
 import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
 import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
+import work.socialhub.kxweb.internal.share.InternalUtility.trackResponse
 import work.socialhub.kxweb.internal.share.InternalUtility.withAuthHeaders
 import work.socialhub.kxweb.model.MutationResult
 import work.socialhub.kxweb.util.toBlocking
@@ -72,6 +73,7 @@ class EngagementResourceImpl(
             .withAuthHeaders(config, "POST", url)
 
         val response = httpRequest.post()
+        trackResponse(config, operationName, response)
         val body = response.stringBody
 
         if (response.status !in 200..299) {

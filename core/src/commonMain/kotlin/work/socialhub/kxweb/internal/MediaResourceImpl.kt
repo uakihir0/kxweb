@@ -13,6 +13,7 @@ import work.socialhub.kxweb.internal.share.InternalUtility.USER_AGENT
 import work.socialhub.kxweb.internal.share.InternalUtility.fromJson
 import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
 import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
+import work.socialhub.kxweb.internal.share.InternalUtility.trackResponse
 import work.socialhub.kxweb.internal.share.InternalUtility.withCookieHeaders
 import work.socialhub.kxweb.model.UploadMediaResult
 import work.socialhub.kxweb.util.toBlocking
@@ -82,6 +83,7 @@ class MediaResourceImpl(
             .withCookieHeaders(config)
 
         val response = httpRequest.post()
+        trackResponse(config, "MediaUpload", response)
 
         if (response.status !in 200..299) {
             throw InternalUtility.handleError(null, response.status, response.stringBody)
@@ -101,6 +103,7 @@ class MediaResourceImpl(
             .withCookieHeaders(config)
 
         val response = httpRequest.post()
+        trackResponse(config, "MediaUpload", response)
 
         if (response.status !in 200..299) {
             throw InternalUtility.handleError(null, response.status, response.stringBody)
@@ -116,6 +119,7 @@ class MediaResourceImpl(
             .withCookieHeaders(config)
 
         val response = httpRequest.post()
+        trackResponse(config, "MediaUpload", response)
 
         if (response.status !in 200..299) {
             throw InternalUtility.handleError(null, response.status, response.stringBody)

@@ -15,6 +15,7 @@ import work.socialhub.kxweb.internal.share.InternalUtility.fromJson
 import work.socialhub.kxweb.internal.share.InternalUtility.graphqlUrl
 import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
 import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
+import work.socialhub.kxweb.internal.share.InternalUtility.trackResponse
 import work.socialhub.kxweb.internal.share.InternalUtility.withAuthHeaders
 import work.socialhub.kxweb.internal.share.TweetParser
 import work.socialhub.kxweb.util.toBlocking
@@ -51,6 +52,7 @@ class ExploreResourceImpl(
             .withAuthHeaders(config, "GET", url, queryParams)
 
         val response = httpRequest.get()
+        trackResponse(config, "GenericTimelineById", response)
         val body = response.stringBody
 
         if (response.status !in 200..299) {

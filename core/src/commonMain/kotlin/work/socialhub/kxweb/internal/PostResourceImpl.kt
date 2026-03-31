@@ -21,6 +21,7 @@ import work.socialhub.kxweb.internal.share.InternalUtility.graphqlUrl
 import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
 import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
 import work.socialhub.kxweb.internal.share.InternalUtility.tweetCreateFeatures
+import work.socialhub.kxweb.internal.share.InternalUtility.trackResponse
 import work.socialhub.kxweb.internal.share.InternalUtility.withAuthHeaders
 import work.socialhub.kxweb.internal.share.TweetParser
 import work.socialhub.kxweb.model.MutationResult
@@ -69,6 +70,7 @@ class PostResourceImpl(
             .withAuthHeaders(config, "POST", url)
 
         val response = httpRequest.post()
+        trackResponse(config, "CreateTweet", response)
         val body = response.stringBody
 
         if (response.status !in 200..299) {
@@ -111,6 +113,7 @@ class PostResourceImpl(
             .withAuthHeaders(config, "POST", url)
 
         val response = httpRequest.post()
+        trackResponse(config, "DeleteTweet", response)
         val body = response.stringBody
 
         if (response.status !in 200..299) {

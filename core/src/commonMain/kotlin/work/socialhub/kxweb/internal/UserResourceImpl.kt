@@ -26,6 +26,7 @@ import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
 import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
 import work.socialhub.kxweb.internal.share.InternalUtility.userByScreenNameFeatures
 import work.socialhub.kxweb.internal.share.InternalUtility.userTweetsFeatures
+import work.socialhub.kxweb.internal.share.InternalUtility.trackResponse
 import work.socialhub.kxweb.internal.share.InternalUtility.withAuthHeaders
 import work.socialhub.kxweb.internal.share.TweetParser
 import work.socialhub.kxweb.model.AboutAccount
@@ -62,6 +63,7 @@ class UserResourceImpl(
             .withAuthHeaders(config, "GET", url, queryParams)
 
         val response = httpRequest.get()
+        trackResponse(config, "UserByScreenName", response)
         val body = response.stringBody
 
         if (response.status !in 200..299) {
@@ -111,6 +113,7 @@ class UserResourceImpl(
             .withAuthHeaders(config, "GET", url, queryParams)
 
         val response = httpRequest.get()
+        trackResponse(config, "AboutAccountQuery", response)
         val body = response.stringBody
 
         if (response.status !in 200..299) {
@@ -169,6 +172,7 @@ class UserResourceImpl(
             .withAuthHeaders(config, "GET", url, queryParams)
 
         val response = httpRequest.get()
+        trackResponse(config, "UserTweets", response)
         val body = response.stringBody
 
         if (response.status !in 200..299) {
@@ -239,6 +243,7 @@ class UserResourceImpl(
             .withAuthHeaders(config, "GET", url, queryParams)
 
         val response = httpRequest.get()
+        trackResponse(config, operationName, response)
         val body = response.stringBody
 
         if (response.status !in 200..299) {

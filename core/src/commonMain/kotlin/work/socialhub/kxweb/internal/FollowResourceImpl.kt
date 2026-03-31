@@ -17,6 +17,7 @@ import work.socialhub.kxweb.internal.share.InternalUtility.graphqlUrl
 import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
 import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
 import work.socialhub.kxweb.internal.share.InternalUtility.withAuthHeaders
+import work.socialhub.kxweb.internal.share.InternalUtility.trackResponse
 import work.socialhub.kxweb.internal.share.InternalUtility.withCookieHeaders
 import work.socialhub.kxweb.model.MutationResult
 import work.socialhub.kxweb.util.toBlocking
@@ -68,6 +69,7 @@ class FollowResourceImpl(
             .withAuthHeaders(config, "POST", url)
 
         val response = httpRequest.post()
+        trackResponse(config, operationName, response)
         val body = response.stringBody
 
         if (response.status !in 200..299) {
@@ -101,6 +103,7 @@ class FollowResourceImpl(
         }
 
         val response = httpRequest.post()
+        trackResponse(config, "Friendship", response)
         val body = response.stringBody
 
         if (response.status !in 200..299) {

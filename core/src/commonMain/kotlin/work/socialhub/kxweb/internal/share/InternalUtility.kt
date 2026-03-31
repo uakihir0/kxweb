@@ -4,6 +4,7 @@ import kotlinx.serialization.json.Json
 import work.socialhub.kxweb.XWebConfig
 import work.socialhub.kxweb.XWebException
 import work.socialhub.kxweb.domain.Service
+import work.socialhub.kxweb.entity.share.RateLimit
 import work.socialhub.kxweb.entity.share.Response
 import work.socialhub.kxweb.util.OAuth1Util
 import work.socialhub.khttpclient.HttpRequest
@@ -86,6 +87,49 @@ object InternalUtility {
             status = status,
             body = body,
         )
+    }
+
+    /**
+     * Track rate limit information from an HTTP response.
+     * When a session pool is configured, updates the pool with rate limit data
+     * and handles session-level errors (rate limit exceeded, token invalidation).
+     *
+     * Should be called after every API response in ResourceImpl classes.
+     *
+     * @param config The current XWebConfig (may contain session pool).
+     * @param endpoint The API endpoint name (e.g., "SearchTimeline").
+     * @param response The HTTP response to extract rate limit headers from.
+     */
+    fun trackResponse(config: XWebConfig, endpoint: String, response: HttpResponse) {
+        val pool = config.sessionPool ?: return
+        val session = config.currentSession ?: return
+
+        // Parse and update rate limit from headers
+        val rateLimit = RateLimit.fromHeaders(response.headers)
+        if (rateLimit != null) {
+            pool.updateRateLimit(session, endpoint, rateLimit)
+        }
+
+        // Handle rate limit exceeded (HTTP 429)
+        if (response.status == 429) {
+            pool.markGloballyLimited(session)
+        }
+
+        // Handle invalid session errors
+        // X error codes: 89 (invalid/expired token), 239 (bad auth data), 326 (account locked)
+        if (response.status == 401 || response.status == 403) {
+            try {
+                val body = response.stringBody
+                if (body.contains("\"code\":89") ||
+                    body.contains("\"code\":239") ||
+                    body.contains("\"code\":326")
+                ) {
+                    pool.invalidateSession(session)
+                }
+            } catch (_: Exception) {
+                // Ignore parse errors
+            }
+        }
     }
 
     /**

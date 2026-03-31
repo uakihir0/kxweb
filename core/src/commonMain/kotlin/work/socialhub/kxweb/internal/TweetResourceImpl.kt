@@ -24,6 +24,7 @@ import work.socialhub.kxweb.internal.share.InternalUtility.tweetDetailFeatures
 import work.socialhub.kxweb.internal.share.InternalUtility.tweetFeatures
 import work.socialhub.kxweb.internal.share.InternalUtility.tweetFieldToggles
 import work.socialhub.kxweb.internal.share.InternalUtility.withAuthHeaders
+import work.socialhub.kxweb.internal.share.InternalUtility.trackResponse
 import work.socialhub.kxweb.internal.share.InternalUtility.withBearerHeaders
 import work.socialhub.kxweb.internal.share.TweetParser
 import work.socialhub.kxweb.model.Tweet
@@ -113,6 +114,7 @@ class TweetResourceImpl(
             .withAuthHeaders(config, "GET", url, queryParams)
 
         val response = httpRequest.get()
+        trackResponse(config, "TweetDetail", response)
         val body = response.stringBody
 
         if (response.status !in 200..299) {

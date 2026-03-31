@@ -11,6 +11,7 @@ import work.socialhub.kxweb.internal.share.InternalUtility
 import work.socialhub.kxweb.internal.share.InternalUtility.fromJson
 import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
 import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
+import work.socialhub.kxweb.internal.share.InternalUtility.trackResponse
 import work.socialhub.kxweb.internal.share.InternalUtility.withCookieHeaders
 import work.socialhub.kxweb.util.toBlocking
 
@@ -32,6 +33,7 @@ class AccountResourceImpl(
                     .withCookieHeaders(config)
 
                 val response = request.get()
+                trackResponse(config, "AccountSettings", response)
                 val body = response.stringBody
 
                 if (response.status == 200) {
