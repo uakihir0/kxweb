@@ -11,6 +11,7 @@ import work.socialhub.kxweb.api.MediaResource
 import work.socialhub.kxweb.api.PostResource
 import work.socialhub.kxweb.api.SearchResource
 import work.socialhub.kxweb.api.TimelineResource
+import work.socialhub.kxweb.api.TrendResource
 import work.socialhub.kxweb.api.TweetResource
 import work.socialhub.kxweb.api.UserResource
 import kotlin.js.JsExport
@@ -30,4 +31,5 @@ interface XWeb {
     fun media(): MediaResource
     fun explore(): ExploreResource
     fun timeline(): TimelineResource
+    fun trend(): TrendResource
 }
