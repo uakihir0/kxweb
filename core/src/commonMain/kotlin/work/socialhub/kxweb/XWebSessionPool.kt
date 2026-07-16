@@ -1,7 +1,7 @@
 package work.socialhub.kxweb
 
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
+import kotlin.time.Clock
+import kotlin.time.Instant
 import work.socialhub.kxweb.entity.share.RateLimit
 import kotlin.js.JsExport
 import kotlin.time.Duration.Companion.seconds

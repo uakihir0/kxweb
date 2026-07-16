@@ -67,7 +67,6 @@ internal fun generateNonce(): String {
 /**
  * Get current timestamp as seconds since epoch.
  */
-@Suppress("DEPRECATION")
 internal fun currentTimestamp(): String {
-    return kotlinx.datetime.Clock.System.now().epochSeconds.toString()
+    return kotlin.time.Clock.System.now().epochSeconds.toString()
 }

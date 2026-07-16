@@ -51,7 +51,7 @@ class XWebSessionPoolTest {
         val rateLimit = RateLimit(
             limit = 100,
             remaining = 1,
-            resetEpochSeconds = kotlinx.datetime.Clock.System.now().epochSeconds + 300,
+            resetEpochSeconds = kotlin.time.Clock.System.now().epochSeconds + 300,
         )
         pool.updateRateLimit(session, "SearchTimeline", rateLimit)
 
@@ -71,7 +71,7 @@ class XWebSessionPoolTest {
         val rateLimit = RateLimit(
             limit = 100,
             remaining = 0,
-            resetEpochSeconds = kotlinx.datetime.Clock.System.now().epochSeconds + 300,
+            resetEpochSeconds = kotlin.time.Clock.System.now().epochSeconds + 300,
         )
         pool.updateRateLimit(session1, "SearchTimeline", rateLimit)
 
@@ -88,7 +88,7 @@ class XWebSessionPoolTest {
         val pool = XWebSessionPool(listOf(s1, s2, s3))
 
         // Give different remaining counts
-        val now = kotlinx.datetime.Clock.System.now().epochSeconds + 300
+        val now = kotlin.time.Clock.System.now().epochSeconds + 300
         pool.updateRateLimit(s1, "test", RateLimit(100, 10, now))
         pool.updateRateLimit(s2, "test", RateLimit(100, 90, now))
         pool.updateRateLimit(s3, "test", RateLimit(100, 50, now))
@@ -215,7 +215,7 @@ class XWebSessionPoolTest {
             )
         )
 
-        val now = kotlinx.datetime.Clock.System.now().epochSeconds
+        val now = kotlin.time.Clock.System.now().epochSeconds
 
         // Rate-limit both sessions with different reset times
         val session1 = XWebSession.cookie("auth1", "csrf1")
