@@ -39,6 +39,25 @@ open class XWebConfig {
      */
     var oauthSecret: String? = null
 
+    // == Guest authentication ==
+    // Read-only access to a limited set of endpoints without a user account.
+    // A guest token is acquired via POST /1.1/guest/activate.json and sent as
+    // the x-guest-token header alongside the public Bearer token.
+    // Endpoint: https://api.x.com/graphql
+
+    /**
+     * Force guest mode. When true, requests use guest-token authentication
+     * even if no other credentials are set. Guest auth is also used
+     * transparently when no cookie/OAuth credentials are present.
+     */
+    var guestMode: Boolean = false
+
+    /**
+     * Guest token value. When set, it is used directly instead of activating
+     * a new one. Leave null to acquire and cache a token automatically.
+     */
+    var guestToken: String? = null
+
     /**
      * Skip SSL Validation (Kotlin/JVM Only)
      */
