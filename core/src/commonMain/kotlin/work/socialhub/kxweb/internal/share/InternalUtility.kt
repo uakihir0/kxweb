@@ -363,10 +363,13 @@ object InternalUtility {
 
     /**
      * Field toggles for TweetResultByRestId GraphQL requests.
+     *
+     * @param withArticle When true, request the full article plain text in
+     *   addition to the rich content state.
      */
-    fun tweetFieldToggles(): Map<String, Boolean> = mapOf(
+    fun tweetFieldToggles(withArticle: Boolean = false): Map<String, Boolean> = mapOf(
         "withArticleRichContentState" to true,
-        "withArticlePlainText" to false,
+        "withArticlePlainText" to withArticle,
         "withGrokAnalyze" to false,
         "withDisallowedReplyControls" to false,
     )

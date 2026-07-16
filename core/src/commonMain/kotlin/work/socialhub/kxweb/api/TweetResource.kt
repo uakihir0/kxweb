@@ -13,13 +13,22 @@ import kotlin.js.JsExport
 @JsExport
 interface TweetResource {
 
+    /**
+     * Get a single tweet by ID.
+     *
+     * @param tweetId The tweet ID.
+     * @param withArticle When true, request embedded X Article content
+     *   (title/preview/plain text). Defaults to false to keep payloads small.
+     */
     suspend fun getTweet(
-        tweetId: String
+        tweetId: String,
+        withArticle: Boolean = false,
     ): Response<Tweet>
 
     @JsExport.Ignore
     fun getTweetBlocking(
-        tweetId: String
+        tweetId: String,
+        withArticle: Boolean = false,
     ): Response<Tweet>
 
     suspend fun getTweetDetail(
