@@ -5,10 +5,9 @@
 ![Maven metadata URL](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Frepo.repsy.io%2Fmvn%2Fuakihir0%2Fpublic%2Fwork%2Fsocialhub%2Fkxweb%2Fcore%2Fmaven-metadata.xml)
 
 ![badge][badge-jvm]
+![badge][badge-js]
 ![badge][badge-ios]
 ![badge][badge-mac]
-![badge][badge-windows]
-![badge][badge-linux]
 
 **This library is an X (Twitter) web client library compatible with [Kotlin Multiplatform](https://kotlinlang.org/docs/multiplatform.html).**
 It depends on [khttpclient] and internally uses Ktor Client.
