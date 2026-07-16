@@ -15,14 +15,14 @@ cp kxweb.podspec ../../repository/kxweb-debug.podspec
 cd ../../repository/ || exit
 sed -i -e "s|'kxweb'|'kxweb-debug'|g" kxweb-debug.podspec
 sed -i -e "s|'kxweb.xcframework'|'debug/kxweb.xcframework'|g" kxweb-debug.podspec
-rm *.podspec-e
+rm -f ./*.podspec-e
 cd "$BASE_PATH" || exit
 cd $BUILD_PATH/cocoapods/publish/release || exit
 cp kxweb.podspec ../../repository/kxweb-release.podspec
 cd ../../repository/ || exit
 sed -i -e "s|'kxweb'|'kxweb-release'|g" kxweb-release.podspec
 sed -i -e "s|'kxweb.xcframework'|'release/kxweb.xcframework'|g" kxweb-release.podspec
-rm *.podspec-e
+rm -f ./*.podspec-e
 
 # Copy Framework
 cd "$BASE_PATH" || exit

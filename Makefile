@@ -7,7 +7,7 @@ build:
 pods:
 	./gradlew \
 	all:assembleKxwebXCFramework \
-  	all:podPublishXCFramework \
+	all:podPublishXCFramework \
 	-x test --refresh-dependencies
 
 version:

@@ -1,7 +1,7 @@
 # kxweb cocoapods
 
 本レポジトリは、[kxweb] の Cocoapods レポジトリです。[kxweb] は Kotlin Multiplatform を用いて作成された X (Twitter) web クライアントライブラリです。
-そのため、iOS 等の Apple Device でも使用でもビルドして使用することができます。ここでは、XCFramework としてビルドしたものを Cocoapods 経由で配布しています。
+そのため、iOS 等の Apple Device でもビルドして使用することができます。ここでは、XCFramework としてビルドしたものを Cocoapods 経由で配布しています。
 また、このレポジトリは [kxweb] の GitHub Actions によって自動コミットされています。issue や pull request は [kxweb] にお願いします。
 
 ## 使用方法
