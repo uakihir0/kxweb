@@ -12,6 +12,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -44,5 +46,5 @@ jobs:
           git add --all
           git commit -m "by GitHub Action CI (SHA ${GITHUB_SHA})"
           git remote add origin https://${GH_TOKEN}@github.com/uakihir0/kxweb.js.git
-          git push -f origin HEAD:${{ env.PROJECT_VERSION }}
+          git push -f origin "HEAD:$PROJECT_VERSION"
           git push -f origin HEAD:main
