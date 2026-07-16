@@ -62,9 +62,23 @@ data class TimelineEntryContent(
     @SerialName("entryType")
     val entryType: String? = null,
     val itemContent: ItemContent? = null,
+    // For module entries (e.g. user search results grouped in a module)
+    val items: List<TimelineModuleItem>? = null,
     // For cursor entries
     val value: String? = null,
     val cursorType: String? = null,
+)
+
+@Serializable
+data class TimelineModuleItem(
+    @SerialName("entryId")
+    val entryId: String? = null,
+    val item: TimelineModuleItemInner? = null,
+)
+
+@Serializable
+data class TimelineModuleItemInner(
+    val itemContent: ItemContent? = null,
 )
 
 @Serializable

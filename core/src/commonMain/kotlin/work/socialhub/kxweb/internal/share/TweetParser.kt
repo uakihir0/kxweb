@@ -121,12 +121,18 @@ object TweetParser {
                     continue
                 }
 
-                val userResult = content.itemContent
-                    ?.userResults
-                    ?.result
-                    ?: continue
+                // Single-item entry (TimelineItem)
+                content.itemContent?.userResults?.result?.let {
+                    users.add(parseUserResult(it))
+                }
 
-                users.add(parseUserResult(userResult))
+                // Module entry (TimelineModule with grouped items), e.g. the
+                // "People" tab of search results.
+                content.items?.forEach { moduleItem ->
+                    moduleItem.item?.itemContent?.userResults?.result?.let {
+                        users.add(parseUserResult(it))
+                    }
+                }
             }
         }
 
