@@ -1,8 +1,8 @@
 package work.socialhub.kxweb.entity.share
 
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlin.js.JsExport
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * Rate limit information from X (Twitter) API response headers.

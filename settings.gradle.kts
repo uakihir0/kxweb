@@ -1,3 +1,5 @@
+import java.util.Locale
+
 pluginManagement {
     includeBuild("plugins")
     repositories {
@@ -10,6 +12,12 @@ pluginManagement {
 rootProject.name = "kxweb"
 
 include("core")
+
+// exclude "all" on Windows OS
+val osName = System.getProperty("os.name").lowercase(Locale.getDefault())
+if (!osName.contains("windows")) {
+    include("all")
+}
 
 // Future modules:
 // include("auth")

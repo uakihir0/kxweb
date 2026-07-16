@@ -2,6 +2,7 @@ package work.socialhub.kxweb.internal.share
 
 import work.socialhub.khttpclient.HttpRequest
 import work.socialhub.kxweb.internal.share.InternalUtility.USER_AGENT
+import kotlin.concurrent.Volatile
 
 object QueryIdResolver {
 

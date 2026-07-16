@@ -46,7 +46,7 @@ class RateLimitTest {
         val rateLimit = RateLimit(
             limit = 100,
             remaining = 0,
-            resetEpochSeconds = kotlinx.datetime.Clock.System.now().epochSeconds + 300,
+            resetEpochSeconds = kotlin.time.Clock.System.now().epochSeconds + 300,
         )
         assertTrue(rateLimit.isLimited())
     }
@@ -56,7 +56,7 @@ class RateLimitTest {
         val rateLimit = RateLimit(
             limit = 100,
             remaining = 50,
-            resetEpochSeconds = kotlinx.datetime.Clock.System.now().epochSeconds + 300,
+            resetEpochSeconds = kotlin.time.Clock.System.now().epochSeconds + 300,
         )
         assertFalse(rateLimit.isLimited())
     }
@@ -66,14 +66,14 @@ class RateLimitTest {
         val rateLimit = RateLimit(
             limit = 100,
             remaining = 0,
-            resetEpochSeconds = kotlinx.datetime.Clock.System.now().epochSeconds - 10,
+            resetEpochSeconds = kotlin.time.Clock.System.now().epochSeconds - 10,
         )
         assertFalse(rateLimit.isLimited())
     }
 
     @Test
     fun testSecondsUntilReset() {
-        val future = kotlinx.datetime.Clock.System.now().epochSeconds + 120
+        val future = kotlin.time.Clock.System.now().epochSeconds + 120
         val rateLimit = RateLimit(100, 0, future)
         assertTrue(rateLimit.secondsUntilReset() > 0)
         assertTrue(rateLimit.secondsUntilReset() <= 120)
@@ -81,7 +81,7 @@ class RateLimitTest {
 
     @Test
     fun testSecondsUntilResetPast() {
-        val past = kotlinx.datetime.Clock.System.now().epochSeconds - 120
+        val past = kotlin.time.Clock.System.now().epochSeconds - 120
         val rateLimit = RateLimit(100, 0, past)
         assertEquals(0L, rateLimit.secondsUntilReset())
     }

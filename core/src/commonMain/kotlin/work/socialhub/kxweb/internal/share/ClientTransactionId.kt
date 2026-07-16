@@ -1,6 +1,5 @@
 package work.socialhub.kxweb.internal.share
 
-import kotlinx.datetime.Clock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import work.socialhub.kxweb.util.Sha256Util
@@ -8,6 +7,7 @@ import work.socialhub.khttpclient.HttpRequest
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.random.Random
+import kotlin.time.Clock
 
 /**
  * Generates x-client-transaction-id headers for X (Twitter) API requests.

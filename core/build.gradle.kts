@@ -15,18 +15,11 @@ kotlin {
         }
     }
 
-    js(IR) {
+    js {
         nodejs()
         browser()
-
         compilerOptions {
-            target.set("es2015")
-        }
-
-        compilations.all {
-            compileTaskProvider.configure {
-                compilerOptions { target.set("es2015") }
-            }
+            freeCompilerArgs.add("-Xes-long-as-bigint")
         }
     }
 
@@ -34,16 +27,12 @@ kotlin {
         iosX64()
         iosArm64()
         iosSimulatorArm64()
-        macosX64()
         macosArm64()
     }
 
-    mingwX64()
-    linuxX64()
-
     compilerOptions {
         freeCompilerArgs.addAll(
-            "-Xenable-suspend-function-exporting",
+            "-XXLanguage:+JsAllowExportingSuspendFunctions",
             "-Xexpect-actual-classes",
         )
     }

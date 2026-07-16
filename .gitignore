@@ -22,6 +22,10 @@ Thumbs.db
 *.log
 *.jar
 !gradle/wrapper/gradle-wrapper.jar
+kotlin-js-store/
+
+# Generated distribution artifacts
+all/swiftpackage/
 
 # Secrets
 secrets.json
