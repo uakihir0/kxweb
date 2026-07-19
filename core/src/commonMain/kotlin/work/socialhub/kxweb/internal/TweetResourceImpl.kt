@@ -35,7 +35,8 @@ class TweetResourceImpl(
 ) : TweetResource {
 
     override suspend fun getTweet(
-        tweetId: String
+        tweetId: String,
+        withArticle: Boolean,
     ): Response<Tweet> {
         val url = graphqlUrlPublic(QueryId.TWEET_RESULT_BY_REST_ID, "TweetResultByRestId")
 
@@ -51,7 +52,7 @@ class TweetResourceImpl(
         }
 
         val fieldToggles = buildJsonObject {
-            tweetFieldToggles().forEach { (key, value) -> put(key, value) }
+            tweetFieldToggles(withArticle).forEach { (key, value) -> put(key, value) }
         }
 
         val request = httpRequest(config)
@@ -78,8 +79,9 @@ class TweetResourceImpl(
     }
 
     override fun getTweetBlocking(
-        tweetId: String
-    ): Response<Tweet> = toBlocking { getTweet(tweetId) }
+        tweetId: String,
+        withArticle: Boolean,
+    ): Response<Tweet> = toBlocking { getTweet(tweetId, withArticle) }
 
     override suspend fun getTweetDetail(
         request: TweetDetailRequest

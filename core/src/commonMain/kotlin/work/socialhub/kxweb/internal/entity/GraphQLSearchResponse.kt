@@ -62,9 +62,23 @@ data class TimelineEntryContent(
     @SerialName("entryType")
     val entryType: String? = null,
     val itemContent: ItemContent? = null,
+    // For module entries (e.g. user search results grouped in a module)
+    val items: List<TimelineModuleItem>? = null,
     // For cursor entries
     val value: String? = null,
     val cursorType: String? = null,
+)
+
+@Serializable
+data class TimelineModuleItem(
+    @SerialName("entryId")
+    val entryId: String? = null,
+    val item: TimelineModuleItemInner? = null,
+)
+
+@Serializable
+data class TimelineModuleItemInner(
+    val itemContent: ItemContent? = null,
 )
 
 @Serializable
@@ -91,9 +105,51 @@ data class TweetResult(
     val core: TweetCore? = null,
     val legacy: TweetLegacy? = null,
     val views: TweetViews? = null,
+    val article: ArticleContainer? = null,
     // Catch additional fields without failing
     @SerialName("unmention_data")
     val unmentionData: JsonElement? = null,
+)
+
+/**
+ * Article embedded in a tweet result. Present when article field toggles are
+ * enabled. Field names are best-effort against the undocumented schema; unknown
+ * keys are ignored so missing fields simply deserialize to null.
+ */
+@Serializable
+data class ArticleContainer(
+    @SerialName("article_results")
+    val articleResults: ArticleResults? = null,
+)
+
+@Serializable
+data class ArticleResults(
+    val result: ArticleResult? = null,
+)
+
+@Serializable
+data class ArticleResult(
+    @SerialName("rest_id")
+    val restId: String? = null,
+    val title: String? = null,
+    @SerialName("preview_text")
+    val previewText: String? = null,
+    @SerialName("plain_text")
+    val plainText: String? = null,
+    @SerialName("cover_media")
+    val coverMedia: ArticleCoverMedia? = null,
+)
+
+@Serializable
+data class ArticleCoverMedia(
+    @SerialName("media_info")
+    val mediaInfo: ArticleCoverMediaInfo? = null,
+)
+
+@Serializable
+data class ArticleCoverMediaInfo(
+    @SerialName("original_img_url")
+    val originalImgUrl: String? = null,
 )
 
 @Serializable

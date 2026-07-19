@@ -140,12 +140,25 @@ object InternalUtility {
     }
 
     /**
+     * Determine if the config uses guest-token authentication.
+     * Guest mode applies when explicitly requested, or transparently when
+     * no cookie/OAuth credentials are present (read-only fallback).
+     */
+    fun isGuest(config: XWebConfig): Boolean {
+        if (isOAuth(config)) return false
+        return config.guestMode ||
+                (config.authToken == null &&
+                        config.csrfToken == null &&
+                        config.cookieString == null)
+    }
+
+    /**
      * Get the GraphQL base URI based on authentication method.
-     * - OAuth: https://api.x.com/graphql
+     * - OAuth / Guest: https://api.x.com/graphql
      * - Cookie: https://x.com/i/api/graphql (from config.apiBaseUri)
      */
     fun graphqlBaseUri(config: XWebConfig): String {
-        return if (isOAuth(config)) {
+        return if (isOAuth(config) || isGuest(config)) {
             Service.X_API_GRAPHQL_OAUTH.uri
         } else {
             config.apiBaseUri
@@ -261,6 +274,41 @@ object InternalUtility {
     }
 
     /**
+     * Apply guest-token authentication headers.
+     * Uses the public Bearer token plus a guest token, enabling read-only
+     * access to a limited set of endpoints without a user account.
+     *
+     * @param config Authentication configuration.
+     * @param guestToken The guest token to send as x-guest-token.
+     * @param method HTTP method (used for client transaction ID generation).
+     * @param url Full request URL (used for client transaction ID generation).
+     */
+    fun HttpRequest.withGuestHeaders(
+        config: XWebConfig,
+        guestToken: String,
+        method: String = "GET",
+        url: String = "",
+    ): HttpRequest = also {
+        it.header("authorization", "Bearer $BEARER_TOKEN")
+        it.header("user-agent", USER_AGENT)
+        it.header("x-guest-token", guestToken)
+        it.header("x-twitter-active-user", "yes")
+        it.header("x-twitter-client-language", "en")
+        it.header("accept", "*/*")
+        it.header("origin", "https://x.com")
+        it.header("referer", "https://x.com/")
+
+        if (config.enableClientTransaction) {
+            val path = try {
+                val afterScheme = url.substringAfter("://")
+                val pathStart = afterScheme.indexOf('/')
+                if (pathStart >= 0) afterScheme.substring(pathStart).substringBefore('?') else ""
+            } catch (_: Exception) { "" }
+            it.header("x-client-transaction-id", generateClientTransactionId(method, path))
+        }
+    }
+
+    /**
      * Build GraphQL URL using api.x.com (Bearer-only endpoints always use api.x.com).
      */
     fun graphqlUrlPublic(queryId: String, operationName: String): String {
@@ -315,10 +363,13 @@ object InternalUtility {
 
     /**
      * Field toggles for TweetResultByRestId GraphQL requests.
+     *
+     * @param withArticle When true, request the full article plain text in
+     *   addition to the rich content state.
      */
-    fun tweetFieldToggles(): Map<String, Boolean> = mapOf(
+    fun tweetFieldToggles(withArticle: Boolean = false): Map<String, Boolean> = mapOf(
         "withArticleRichContentState" to true,
-        "withArticlePlainText" to false,
+        "withArticlePlainText" to withArticle,
         "withGrokAnalyze" to false,
         "withDisallowedReplyControls" to false,
     )
@@ -637,7 +688,7 @@ object InternalUtility {
      *
      * @param endpoint Optional endpoint name for session pool rate limit selection.
      */
-    fun HttpRequest.withAuthHeaders(
+    suspend fun HttpRequest.withAuthHeaders(
         config: XWebConfig,
         method: String,
         url: String,
@@ -647,10 +698,31 @@ object InternalUtility {
         // Resolve session from pool if configured
         config.resolveSession(endpoint)
 
-        return if (isOAuth(config)) {
-            withOAuthHeaders(config, method, url, queryParams)
-        } else {
-            withCookieHeaders(config, method, url)
+        return when {
+            isOAuth(config) -> withOAuthHeaders(config, method, url, queryParams)
+            isGuest(config) -> withGuestHeaders(config, GuestTokenProvider.token(config), method, url)
+            else -> withCookieHeaders(config, method, url)
+        }
+    }
+
+    /**
+     * Execute a guest-authenticated request, refreshing the guest token once
+     * if it fails with an authentication error (HTTP 401/403). No-op wrapper
+     * when the config is not in guest mode.
+     */
+    suspend fun <T> withGuestRetry(
+        config: XWebConfig,
+        execute: suspend () -> T,
+    ): T {
+        return try {
+            execute()
+        } catch (e: XWebException) {
+            if (isGuest(config) && (e.status == 401 || e.status == 403)) {
+                GuestTokenProvider.invalidate()
+                execute()
+            } else {
+                throw e
+            }
         }
     }
 

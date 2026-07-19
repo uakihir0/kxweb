@@ -20,4 +20,5 @@ data class Tweet(
     var inReplyToStatusId: String? = null,
     var conversationId: String? = null,
     var lang: String? = null,
+    var article: Article? = null,
 )

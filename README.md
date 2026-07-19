@@ -67,15 +67,25 @@ Here is a sample Maven configuration:
 
 ### Features
 
-This library is currently under active development. The following features are planned:
+- **Authentication**: Cookie (`auth_token`/`ct0`), OAuth1, and guest-token modes, plus a multi-session pool with per-endpoint rate-limit tracking
+- **Timeline Operations**: Home timeline, user tweets, list timelines, likes, and bookmarks
+- **Tweet Operations**: Fetch single tweets, conversation threads, and replies; create and delete tweets
+- **Engagement**: Like/unlike and retweet/unretweet
+- **Search**: Tweet search and user search (`SearchTimeline`)
+- **User Operations**: Profiles, followers/following, and account info
+- **Trends**: Location-based trending topics (`getTrendLocations`/`getTrends`)
+- **Articles**: Read embedded X Article content on tweets
+- **Explore & Media**: News timeline and chunked media upload
 
-- **Authentication**: Support for various authentication methods to access X (Twitter) APIs
-- **Timeline Operations**: Read tweets, user timelines, and related content
-- **Post Operations**: Create tweets and interact with posts
-- **Search**: Search for tweets, users, and hashtags
-- **User Operations**: Access user profiles and related information
+Detailed API usage examples are available through the test code under `core/src/jvmTest`.
 
-Detailed API usage examples will be available through test code as the implementation progresses.
+#### Authentication
+
+An X account is not strictly required for read-only access: `XWebFactory.instanceGuest()`
+acquires a guest token automatically and can read public profiles, single tweets,
+and trends. Search and conversation threads require a logged-in session — use
+`XWebFactory.instance(authToken, csrfToken)` with cookies from a browser session,
+or `XWebFactory.instanceOAuth(...)`.
 
 ### Important Notes
 

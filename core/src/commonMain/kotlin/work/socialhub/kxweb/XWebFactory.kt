@@ -45,6 +45,24 @@ object XWebFactory {
     }
 
     /**
+     * Create an XWeb instance with guest-token authentication.
+     * A guest token is acquired automatically on the first request, allowing
+     * read-only access to a limited set of endpoints (e.g. user profiles,
+     * single tweets, trends) without a user account.
+     *
+     * Note: search and conversation threads require a logged-in session and
+     * are not available with guest authentication.
+     */
+    @JsName("instanceGuest")
+    fun instanceGuest(): XWeb {
+        return XWebImpl(
+            XWebConfig().also {
+                it.guestMode = true
+            }
+        )
+    }
+
+    /**
      * Create an XWeb instance with OAuth1 authentication.
      * Uses api.x.com endpoint with HMAC-SHA1 signature (same as Nitter).
      */

@@ -7,6 +7,9 @@ import work.socialhub.kxweb.api.SearchResource
 import work.socialhub.kxweb.domain.QueryId
 import work.socialhub.kxweb.entity.search.SearchSearchRequest
 import work.socialhub.kxweb.entity.search.SearchSearchResponse
+import work.socialhub.kxweb.entity.search.SearchType
+import work.socialhub.kxweb.entity.search.SearchUsersRequest
+import work.socialhub.kxweb.entity.search.SearchUsersResponse
 import work.socialhub.kxweb.entity.share.Response
 import work.socialhub.kxweb.internal.entity.GraphQLSearchRoot
 import work.socialhub.kxweb.internal.share.InternalUtility
@@ -79,4 +82,60 @@ class SearchResourceImpl(
     override fun searchTweetsBlocking(
         request: SearchSearchRequest
     ): Response<SearchSearchResponse> = toBlocking { searchTweets(request) }
+
+    override suspend fun searchUsers(
+        request: SearchUsersRequest
+    ): Response<SearchUsersResponse> {
+        val url = graphqlUrl(config, QueryId.SEARCH_TIMELINE, "SearchTimeline")
+
+        val variables = buildJsonObject {
+            request.query?.let { put("rawQuery", it) }
+            put("count", request.count)
+            put("querySource", "typed_query")
+            put("product", SearchType.PEOPLE.product)
+            request.cursor?.let { put("cursor", it) }
+        }
+
+        val features = buildJsonObject {
+            searchFeatures().forEach { (key, value) -> put(key, value) }
+        }
+
+        val variablesStr = variables.toString()
+        val featuresStr = features.toString()
+        val queryParams = mapOf("variables" to variablesStr, "features" to featuresStr)
+
+        val httpRequest = httpRequest(config)
+            .url(url)
+            .setTimeouts(config)
+            .query("variables", variablesStr)
+            .query("features", featuresStr)
+            .withAuthHeaders(config, "GET", url, queryParams)
+
+        val response = httpRequest.get()
+        trackResponse(config, "SearchTimeline", response)
+        val responseBody = response.stringBody
+
+        if (response.status !in 200..299) {
+            throw InternalUtility.handleError(null, response.status, responseBody)
+        }
+
+        val graphQLResponse = fromJson<GraphQLSearchRoot>(responseBody)
+        val instructions = graphQLResponse.data
+            ?.searchByRawQuery
+            ?.searchTimeline
+            ?.timeline
+            ?.instructions
+            ?: return Response(SearchUsersResponse(), responseBody)
+
+        val result = TweetParser.parseUserTimelineInstructions(instructions)
+
+        return Response(
+            SearchUsersResponse(users = result.users, cursor = result.cursor),
+            responseBody,
+        )
+    }
+
+    override fun searchUsersBlocking(
+        request: SearchUsersRequest
+    ): Response<SearchUsersResponse> = toBlocking { searchUsers(request) }
 }

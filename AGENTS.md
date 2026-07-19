@@ -4,7 +4,7 @@
 
 This repository is an API client library for X (Twitter) web (Kotlin Multiplatform compatible). This library interacts with X (Twitter)'s unofficial/undocumented web APIs.
 
-**Note:** This project is currently in early development. The implementation is strongly inspired by [Nitter](https://github.com/zedeus/nitter) and [bird](https://github.com/steipete/bird), which provide valuable insights into Twitter/X web API interactions.
+**Note:** The core resource set is implemented (account, search, tweet, home, user, engagement, post, follow, bookmark, list, media, explore, timeline, trend). The implementation is strongly inspired by [Nitter](https://github.com/zedeus/nitter) and [bird](https://github.com/steipete/bird), which provide valuable insights into Twitter/X web API interactions.
 
 ## Key References
 
@@ -45,14 +45,24 @@ X (Twitter) web APIs are primarily GraphQL-based with the following characterist
 - **Rate Limiting**: Per-endpoint rate limits enforced
 - **API Stability**: Endpoints, query IDs, and anti-bot behavior can change at any time
 
-### API Categories (Planned)
+### API Categories
 
-- **Authentication**: Login, session management, token handling
-- **Timeline Operations**: Home timeline, user timeline, list timeline
-- **Tweet Operations**: Create, delete, like, retweet, reply
-- **User Operations**: Profile information, followers, following
-- **Search**: Tweet search, user search, hashtag search
+Implemented:
+
+- **Authentication**: Cookie, OAuth1, and guest-token modes; multi-session pool with rate-limit tracking
+- **Timeline Operations**: Home timeline, user timeline, list timeline, likes, bookmarks
+- **Tweet Operations**: Create, delete, like, retweet, reply, conversation threads
+- **User Operations**: Profile information, followers, following, account info
+- **Search**: Tweet search and user search (`SearchTimeline`)
+- **Trends**: Location-based trending topics
+- **Articles**: Embedded X Article reading
+- **Explore & Media**: News timeline, chunked media upload
+
+Not yet implemented:
+
 - **Direct Messages**: DM conversations and messaging
+- **Streaming**: Real-time updates
+- **Login flow**: Guest-token activation is supported; username/password login is not
 
 ## Directory Structure (Planned)
 

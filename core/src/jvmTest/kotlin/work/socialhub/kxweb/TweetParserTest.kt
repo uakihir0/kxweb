@@ -1,9 +1,16 @@
 package work.socialhub.kxweb
 
+import work.socialhub.kxweb.internal.entity.ArticleContainer
+import work.socialhub.kxweb.internal.entity.ArticleCoverMedia
+import work.socialhub.kxweb.internal.entity.ArticleCoverMediaInfo
+import work.socialhub.kxweb.internal.entity.ArticleResult
+import work.socialhub.kxweb.internal.entity.ArticleResults
 import work.socialhub.kxweb.internal.entity.ItemContent
 import work.socialhub.kxweb.internal.entity.TimelineEntry
 import work.socialhub.kxweb.internal.entity.TimelineEntryContent
 import work.socialhub.kxweb.internal.entity.TimelineInstruction
+import work.socialhub.kxweb.internal.entity.TimelineModuleItem
+import work.socialhub.kxweb.internal.entity.TimelineModuleItemInner
 import work.socialhub.kxweb.internal.entity.TweetCore
 import work.socialhub.kxweb.internal.entity.TweetLegacy
 import work.socialhub.kxweb.internal.entity.TweetResult
@@ -177,5 +184,106 @@ class TweetParserTest {
 
         assertEquals(0, result.tweets.size)
         assertNull(result.cursor)
+    }
+
+    @Test
+    fun testParseTweetResultWithArticle() {
+        val tweetResult = TweetResult(
+            restId = "999",
+            legacy = TweetLegacy(fullText = "See my article"),
+            article = ArticleContainer(
+                articleResults = ArticleResults(
+                    result = ArticleResult(
+                        restId = "art-1",
+                        title = "How X Works",
+                        previewText = "A short preview",
+                        plainText = "The full article body text.",
+                        coverMedia = ArticleCoverMedia(
+                            mediaInfo = ArticleCoverMediaInfo(
+                                originalImgUrl = "https://example.com/cover.jpg",
+                            )
+                        ),
+                    )
+                )
+            ),
+        )
+
+        val tweet = TweetParser.parseTweetResult(tweetResult)
+
+        assertNotNull(tweet.article)
+        assertEquals("art-1", tweet.article?.id)
+        assertEquals("How X Works", tweet.article?.title)
+        assertEquals("A short preview", tweet.article?.previewText)
+        assertEquals("The full article body text.", tweet.article?.plainText)
+        assertEquals("https://example.com/cover.jpg", tweet.article?.coverImageUrl)
+    }
+
+    @Test
+    fun testParseTweetResultWithoutArticle() {
+        val tweetResult = TweetResult(
+            restId = "1000",
+            legacy = TweetLegacy(fullText = "Plain tweet"),
+        )
+
+        val tweet = TweetParser.parseTweetResult(tweetResult)
+        assertNull(tweet.article)
+    }
+
+    @Test
+    fun testParseUsersFromModuleItems() {
+        val instructions = listOf(
+            TimelineInstruction(
+                type = "TimelineAddEntries",
+                entries = listOf(
+                    TimelineEntry(
+                        entryId = "user-module",
+                        content = TimelineEntryContent(
+                            items = listOf(
+                                TimelineModuleItem(
+                                    entryId = "user-module-0",
+                                    item = TimelineModuleItemInner(
+                                        itemContent = ItemContent(
+                                            userResults = UserResults(
+                                                result = UserResult(
+                                                    restId = "11",
+                                                    legacy = UserLegacy(screenName = "alice"),
+                                                )
+                                            )
+                                        )
+                                    )
+                                ),
+                                TimelineModuleItem(
+                                    entryId = "user-module-1",
+                                    item = TimelineModuleItemInner(
+                                        itemContent = ItemContent(
+                                            userResults = UserResults(
+                                                result = UserResult(
+                                                    restId = "12",
+                                                    legacy = UserLegacy(screenName = "bob"),
+                                                )
+                                            )
+                                        )
+                                    )
+                                ),
+                            )
+                        )
+                    ),
+                    TimelineEntry(
+                        entryId = "cursor-bottom",
+                        content = TimelineEntryContent(
+                            cursorType = "Bottom",
+                            value = "cursor_x",
+                        )
+                    ),
+                )
+            )
+        )
+
+        val result = TweetParser.parseUserTimelineInstructions(instructions)
+
+        assertEquals(2, result.users.size)
+        assertEquals("alice", result.users[0].screenName)
+        assertEquals("bob", result.users[1].screenName)
+        assertEquals("cursor_x", result.cursor)
     }
 }

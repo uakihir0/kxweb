@@ -13,6 +13,7 @@ import work.socialhub.kxweb.api.MediaResource
 import work.socialhub.kxweb.api.PostResource
 import work.socialhub.kxweb.api.SearchResource
 import work.socialhub.kxweb.api.TimelineResource
+import work.socialhub.kxweb.api.TrendResource
 import work.socialhub.kxweb.api.TweetResource
 import work.socialhub.kxweb.api.UserResource
 
@@ -33,6 +34,7 @@ class XWebImpl(
     private val media: MediaResource = MediaResourceImpl(config)
     private val explore: ExploreResource = ExploreResourceImpl(config)
     private val timeline: TimelineResource = TimelineResourceImpl(config)
+    private val trend: TrendResource = TrendResourceImpl(config)
 
     override fun account() = account
     override fun search() = search
@@ -47,4 +49,5 @@ class XWebImpl(
     override fun media() = media
     override fun explore() = explore
     override fun timeline() = timeline
+    override fun trend() = trend
 }

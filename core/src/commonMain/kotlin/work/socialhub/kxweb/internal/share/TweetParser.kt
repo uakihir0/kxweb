@@ -3,6 +3,7 @@ package work.socialhub.kxweb.internal.share
 import work.socialhub.kxweb.internal.entity.TweetResult
 import work.socialhub.kxweb.internal.entity.TimelineInstruction
 import work.socialhub.kxweb.internal.entity.UserResult
+import work.socialhub.kxweb.model.Article
 import work.socialhub.kxweb.model.Media
 import work.socialhub.kxweb.model.Tweet
 import work.socialhub.kxweb.model.User
@@ -29,6 +30,16 @@ object TweetParser {
 
         val viewCount = tweetResult.views?.count?.toLongOrNull()
 
+        val article = tweetResult.article?.articleResults?.result?.let {
+            Article(
+                id = it.restId,
+                title = it.title,
+                previewText = it.previewText,
+                plainText = it.plainText,
+                coverImageUrl = it.coverMedia?.mediaInfo?.originalImgUrl,
+            )
+        }
+
         return Tweet(
             id = tweetResult.restId,
             text = legacy?.fullText,
@@ -44,6 +55,7 @@ object TweetParser {
             inReplyToStatusId = legacy?.inReplyToStatusIdStr,
             conversationId = legacy?.conversationIdStr,
             lang = legacy?.lang,
+            article = article,
         )
     }
 
@@ -121,12 +133,18 @@ object TweetParser {
                     continue
                 }
 
-                val userResult = content.itemContent
-                    ?.userResults
-                    ?.result
-                    ?: continue
+                // Single-item entry (TimelineItem)
+                content.itemContent?.userResults?.result?.let {
+                    users.add(parseUserResult(it))
+                }
 
-                users.add(parseUserResult(userResult))
+                // Module entry (TimelineModule with grouped items), e.g. the
+                // "People" tab of search results.
+                content.items?.forEach { moduleItem ->
+                    moduleItem.item?.itemContent?.userResults?.result?.let {
+                        users.add(parseUserResult(it))
+                    }
+                }
             }
         }
 
