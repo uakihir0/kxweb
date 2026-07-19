@@ -1,5 +1,7 @@
 package work.socialhub.kxweb.internal.share
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import work.socialhub.kxweb.XWebConfig
@@ -31,6 +33,9 @@ object GuestTokenProvider {
     @Volatile
     private var acquiredAtSeconds: Long = 0L
 
+    /** Serializes activation so concurrent callers don't each hit the network. */
+    private val activationMutex = Mutex()
+
     /** Guest tokens live roughly a few hours; refresh conservatively. */
     private const val TTL_SECONDS = 3 * 60 * 60L
 
@@ -44,21 +49,34 @@ object GuestTokenProvider {
      * Return a valid guest token, activating a new one if the cache is empty
      * or expired. A token set manually via [XWebConfig.guestToken] takes
      * precedence and is used without a network call.
+     *
+     * Concurrent callers are serialized: the first activates and caches the
+     * token, and the rest reuse the fresh cached value instead of each making
+     * a redundant activation request.
      */
     suspend fun token(config: XWebConfig): String {
         config.guestToken?.let { return it }
 
-        val now = Clock.System.now().epochSeconds
-        val cached = cachedToken
-        if (cached != null && (now - acquiredAtSeconds) < TTL_SECONDS) {
-            return cached
+        cachedIfFresh()?.let { return it }
+
+        return activationMutex.withLock {
+            // Re-check inside the lock: another caller may have just refreshed.
+            cachedIfFresh() ?: activate(config)
         }
-        return activate(config)
+    }
+
+    /** Return the cached token if present and still within the TTL. */
+    private fun cachedIfFresh(): String? {
+        val cached = cachedToken ?: return null
+        val now = Clock.System.now().epochSeconds
+        return if ((now - acquiredAtSeconds) < TTL_SECONDS) cached else null
     }
 
     /**
      * Activate a fresh guest token via the public activation endpoint and
      * cache it. Uses the public Bearer token only (no user credentials).
+     *
+     * Prefer [token] for normal use; it deduplicates concurrent activations.
      */
     suspend fun activate(config: XWebConfig): String {
         val url = "${Service.X_REST_API_PUBLIC.uri}/1.1/guest/activate.json"
