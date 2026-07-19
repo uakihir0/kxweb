@@ -12,9 +12,18 @@ import kotlin.js.JsExport
 @Serializable
 @JsExport
 data class Article(
+    /** Article identifier. */
     var id: String? = null,
+
+    /** Article title. */
     var title: String? = null,
+
+    /** Short preview/summary text. */
     var previewText: String? = null,
+
+    /** Full article body as plain text (present only when requested). */
     var plainText: String? = null,
+
+    /** URL of the article's cover image. */
     var coverImageUrl: String? = null,
 )
