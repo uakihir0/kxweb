@@ -22,6 +22,7 @@ object QueryId {
     const val HOME_LATEST_TIMELINE = "BKB7oi212Fi7kQtCBGE4zA"
 
     // User
+    const val VIEWER = "u4ni7JqpqdAQxWQfkLsdUQ"
     const val USER_BY_SCREEN_NAME = "2qvSHpkWTMS9i0zJAwDNiA"
     const val ABOUT_ACCOUNT_QUERY = "zs_jFPFT78rBpXv9Z3U2YQ"
     const val USER_TWEETS = "E3opETHurmVJflFsUBVuUQ"
