@@ -162,6 +162,39 @@ class TweetParserTest {
     }
 
     @Test
+    fun testDeserializeVisibilityWrappedRetweetedStatusResult() {
+        val tweetResult = Json { ignoreUnknownKeys = true }.decodeFromString<TweetResult>(
+            """
+            {
+              "rest_id": "retweet-1",
+              "legacy": {
+                "full_text": "RT @original: Original post",
+                "retweeted_status_result": {
+                  "result": {
+                    "__typename": "TweetWithVisibilityResults",
+                    "tweet": {
+                      "__typename": "Tweet",
+                      "rest_id": "original-1",
+                      "legacy": {
+                        "full_text": "Original post",
+                        "favorite_count": 12
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            """.trimIndent()
+        )
+
+        val tweet = TweetParser.parseTweetResult(tweetResult)
+
+        assertEquals("original-1", tweet.retweetedTweet?.id)
+        assertEquals("Original post", tweet.retweetedTweet?.text)
+        assertEquals(12, tweet.retweetedTweet?.favoriteCount)
+    }
+
+    @Test
     fun testIgnoreUnavailableRetweetedStatusResult() {
         val tweetResult = TweetResult(
             restId = "retweet-1",

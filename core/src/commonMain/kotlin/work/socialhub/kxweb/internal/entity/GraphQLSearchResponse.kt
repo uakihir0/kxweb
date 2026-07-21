@@ -100,6 +100,7 @@ data class TweetResults(
 data class TweetResult(
     @SerialName("__typename")
     val typename: String? = null,
+    val tweet: TweetResult? = null,
     @SerialName("rest_id")
     val restId: String? = null,
     val core: TweetCore? = null,

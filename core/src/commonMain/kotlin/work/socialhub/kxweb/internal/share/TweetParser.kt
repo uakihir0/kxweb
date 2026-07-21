@@ -11,9 +11,10 @@ import work.socialhub.kxweb.model.User
 object TweetParser {
 
     fun parseTweetResult(tweetResult: TweetResult): Tweet {
-        val legacy = tweetResult.legacy
+        val source = unwrapTweetResult(tweetResult)
+        val legacy = source.legacy
 
-        val user = tweetResult.core?.userResults?.result?.let { parseUserResult(it) }
+        val user = source.core?.userResults?.result?.let { parseUserResult(it) }
 
         val mediaEntities = legacy?.extendedEntities?.media
             ?: legacy?.entities?.media
@@ -28,9 +29,9 @@ object TweetParser {
             )
         }
 
-        val viewCount = tweetResult.views?.count?.toLongOrNull()
+        val viewCount = source.views?.count?.toLongOrNull()
 
-        val article = tweetResult.article?.articleResults?.result?.let {
+        val article = source.article?.articleResults?.result?.let {
             Article(
                 id = it.restId,
                 title = it.title,
@@ -40,8 +41,11 @@ object TweetParser {
             )
         }
 
+        val retweetedResult = legacy?.retweetedStatusResult?.result
+            ?.let(::unwrapTweetResult)
+
         return Tweet(
-            id = tweetResult.restId,
+            id = source.restId,
             text = legacy?.fullText,
             createdAt = legacy?.createdAt,
             user = user,
@@ -56,10 +60,18 @@ object TweetParser {
             conversationId = legacy?.conversationIdStr,
             lang = legacy?.lang,
             article = article,
-            retweetedTweet = legacy?.retweetedStatusResult?.result
+            retweetedTweet = retweetedResult
                 ?.takeIf { it.restId != null && it.legacy != null }
                 ?.let(::parseTweetResult),
         )
+    }
+
+    private fun unwrapTweetResult(tweetResult: TweetResult): TweetResult {
+        var current = tweetResult
+        while (true) {
+            current = current.tweet ?: break
+        }
+        return current
     }
 
     fun parseUserResult(userResult: UserResult): User {
