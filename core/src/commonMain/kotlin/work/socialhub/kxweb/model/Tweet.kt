@@ -21,4 +21,5 @@ data class Tweet(
     var conversationId: String? = null,
     var lang: String? = null,
     var article: Article? = null,
+    var retweetedTweet: Tweet? = null,
 )

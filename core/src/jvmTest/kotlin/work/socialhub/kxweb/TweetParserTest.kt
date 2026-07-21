@@ -1,5 +1,6 @@
 package work.socialhub.kxweb
 
+import kotlinx.serialization.json.Json
 import work.socialhub.kxweb.internal.entity.ArticleContainer
 import work.socialhub.kxweb.internal.entity.ArticleCoverMedia
 import work.socialhub.kxweb.internal.entity.ArticleCoverMediaInfo
@@ -82,6 +83,133 @@ class TweetParserTest {
         assertEquals(1000, tweet.user?.followersCount)
         assertEquals(500, tweet.user?.followingCount)
         assertEquals(2000, tweet.user?.statusesCount)
+    }
+
+    @Test
+    fun testParseRetweetedTweet() {
+        val tweetResult = TweetResult(
+            restId = "retweet-1",
+            legacy = TweetLegacy(
+                fullText = "RT @original: Original post",
+                retweetedStatusResult = TweetResults(
+                    result = TweetResult(
+                        restId = "original-1",
+                        legacy = TweetLegacy(
+                            fullText = "Original post",
+                            favoriteCount = 12,
+                        ),
+                        core = TweetCore(
+                            userResults = UserResults(
+                                result = UserResult(
+                                    restId = "original-user",
+                                    core = UserResultCore(
+                                        name = "Original User",
+                                        screenName = "original",
+                                    ),
+                                )
+                            )
+                        ),
+                    )
+                ),
+            ),
+            core = TweetCore(
+                userResults = UserResults(
+                    result = UserResult(
+                        restId = "retweet-user",
+                        core = UserResultCore(
+                            name = "Retweet User",
+                            screenName = "retweeter",
+                        ),
+                    )
+                )
+            ),
+        )
+
+        val tweet = TweetParser.parseTweetResult(tweetResult)
+
+        assertEquals("retweet-user", tweet.user?.id)
+        assertEquals("original-1", tweet.retweetedTweet?.id)
+        assertEquals("Original post", tweet.retweetedTweet?.text)
+        assertEquals("original-user", tweet.retweetedTweet?.user?.id)
+        assertEquals(12, tweet.retweetedTweet?.favoriteCount)
+    }
+
+    @Test
+    fun testDeserializeRetweetedStatusResult() {
+        val tweetResult = Json { ignoreUnknownKeys = true }.decodeFromString<TweetResult>(
+            """
+            {
+              "rest_id": "retweet-1",
+              "legacy": {
+                "full_text": "RT @original: Original post",
+                "retweeted_status_result": {
+                  "result": {
+                    "rest_id": "original-1",
+                    "legacy": {
+                      "full_text": "Original post"
+                    }
+                  }
+                }
+              }
+            }
+            """.trimIndent()
+        )
+
+        val tweet = TweetParser.parseTweetResult(tweetResult)
+
+        assertEquals("original-1", tweet.retweetedTweet?.id)
+        assertEquals("Original post", tweet.retweetedTweet?.text)
+    }
+
+    @Test
+    fun testDeserializeVisibilityWrappedRetweetedStatusResult() {
+        val tweetResult = Json { ignoreUnknownKeys = true }.decodeFromString<TweetResult>(
+            """
+            {
+              "rest_id": "retweet-1",
+              "legacy": {
+                "full_text": "RT @original: Original post",
+                "retweeted_status_result": {
+                  "result": {
+                    "__typename": "TweetWithVisibilityResults",
+                    "tweet": {
+                      "__typename": "Tweet",
+                      "rest_id": "original-1",
+                      "legacy": {
+                        "full_text": "Original post",
+                        "favorite_count": 12
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            """.trimIndent()
+        )
+
+        val tweet = TweetParser.parseTweetResult(tweetResult)
+
+        assertEquals("original-1", tweet.retweetedTweet?.id)
+        assertEquals("Original post", tweet.retweetedTweet?.text)
+        assertEquals(12, tweet.retweetedTweet?.favoriteCount)
+    }
+
+    @Test
+    fun testIgnoreUnavailableRetweetedStatusResult() {
+        val tweetResult = TweetResult(
+            restId = "retweet-1",
+            legacy = TweetLegacy(
+                fullText = "RT @unavailable: Unavailable post",
+                retweetedStatusResult = TweetResults(
+                    result = TweetResult(typename = "TweetUnavailable")
+                ),
+            ),
+        )
+
+        val tweet = TweetParser.parseTweetResult(tweetResult)
+
+        assertNull(tweet.retweetedTweet)
+        assertEquals("RT @unavailable: Unavailable post", tweet.text)
     }
 
     @Test
