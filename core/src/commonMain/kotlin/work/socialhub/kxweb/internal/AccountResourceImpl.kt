@@ -1,5 +1,6 @@
 package work.socialhub.kxweb.internal
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.put
@@ -28,6 +29,8 @@ class AccountResourceImpl(
     override suspend fun getCurrentUser(): Response<GetCurrentUserResponse> {
         try {
             return getCurrentUserFromViewer()
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {
             // Older sessions may still support the legacy REST endpoints below.
         }
@@ -61,8 +64,10 @@ class AccountResourceImpl(
                 if (response.status in listOf(401, 403)) {
                     throw InternalUtility.handleError(null, response.status, body)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (url == urls.last()) throw InternalUtility.handleError(e as? Exception ?: Exception(e))
+                if (url == urls.last()) throw InternalUtility.handleError(e)
             }
         }
 
@@ -101,7 +106,7 @@ class AccountResourceImpl(
             .query("variables", queryParams.getValue("variables"))
             .query("features", queryParams.getValue("features"))
             .query("fieldToggles", queryParams.getValue("fieldToggles"))
-            .withAuthHeaders(config, "GET", url, queryParams)
+            .withAuthHeaders(config, "GET", url, queryParams, endpoint = "Viewer")
             .get()
         trackResponse(config, "Viewer", response)
         val body = response.stringBody
