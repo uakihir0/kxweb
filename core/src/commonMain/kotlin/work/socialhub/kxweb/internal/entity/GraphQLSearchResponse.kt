@@ -240,6 +240,8 @@ data class TweetLegacy(
     @SerialName("extended_entities")
     val extendedEntities: ExtendedEntities? = null,
     val entities: TweetEntities? = null,
+    @SerialName("retweeted_status_result")
+    val retweetedStatusResult: TweetResults? = null,
 )
 
 @Serializable

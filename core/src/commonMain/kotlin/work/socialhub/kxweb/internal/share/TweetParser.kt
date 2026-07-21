@@ -56,6 +56,9 @@ object TweetParser {
             conversationId = legacy?.conversationIdStr,
             lang = legacy?.lang,
             article = article,
+            retweetedTweet = legacy?.retweetedStatusResult?.result
+                ?.takeIf { it.restId != null && it.legacy != null }
+                ?.let(::parseTweetResult),
         )
     }
 
