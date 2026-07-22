@@ -286,6 +286,22 @@ class TweetParserTest {
                         )
                     ),
                     TimelineEntry(
+                        entryId = "tweet-3",
+                        content = TimelineEntryContent(
+                            itemContent = ItemContent(
+                                tweetResults = TweetResults(
+                                    result = TweetResult(
+                                        typename = "TweetWithVisibilityResults",
+                                        tweet = TweetResult(
+                                            restId = "3",
+                                            legacy = TweetLegacy(fullText = "Wrapped tweet"),
+                                        ),
+                                    )
+                                )
+                            )
+                        )
+                    ),
+                    TimelineEntry(
                         entryId = "cursor-bottom",
                         content = TimelineEntryContent(
                             cursorType = "Bottom",
@@ -298,11 +314,13 @@ class TweetParserTest {
 
         val result = TweetParser.parseTimelineInstructions(instructions)
 
-        assertEquals(2, result.tweets.size)
+        assertEquals(3, result.tweets.size)
         assertEquals("1", result.tweets[0].id)
         assertEquals("Tweet 1", result.tweets[0].text)
         assertEquals("2", result.tweets[1].id)
         assertEquals("Tweet 2", result.tweets[1].text)
+        assertEquals("3", result.tweets[2].id)
+        assertEquals("Wrapped tweet", result.tweets[2].text)
         assertEquals("next_cursor_value", result.cursor)
     }
 
