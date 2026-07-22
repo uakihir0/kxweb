@@ -20,6 +20,7 @@ import work.socialhub.kxweb.internal.share.InternalUtility.searchFeatures
 import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
 import work.socialhub.kxweb.internal.share.InternalUtility.trackResponse
 import work.socialhub.kxweb.internal.share.InternalUtility.withAuthHeaders
+import work.socialhub.kxweb.internal.share.InternalUtility.withQueryIdRetry
 import work.socialhub.kxweb.internal.share.TweetParser
 import work.socialhub.kxweb.util.toBlocking
 
@@ -29,14 +30,26 @@ class SearchResourceImpl(
 
     override suspend fun searchTweets(
         request: SearchSearchRequest
+    ): Response<SearchSearchResponse> = withQueryIdRetry(
+        operationName = "SearchTimeline",
+        queryId = QueryId.SEARCH_TIMELINE,
+    ) { resolvedQueryId ->
+        searchTweets(request, resolvedQueryId)
+    }
+
+    private suspend fun searchTweets(
+        request: SearchSearchRequest,
+        queryId: String,
     ): Response<SearchSearchResponse> {
-        val url = graphqlUrl(config, QueryId.SEARCH_TIMELINE, "SearchTimeline")
+        val url = graphqlUrl(config, queryId, "SearchTimeline")
 
         val variables = buildJsonObject {
             request.query?.let { put("rawQuery", it) }
             put("count", request.count)
             put("querySource", "typed_query")
             put("product", request.searchType.product)
+            put("withGrokTranslatedBio", true)
+            put("withQuickPromoteEligibilityTweetFields", false)
             request.cursor?.let { put("cursor", it) }
         }
 
@@ -91,14 +104,26 @@ class SearchResourceImpl(
 
     override suspend fun searchUsers(
         request: SearchUsersRequest
+    ): Response<SearchUsersResponse> = withQueryIdRetry(
+        operationName = "SearchTimeline",
+        queryId = QueryId.SEARCH_TIMELINE,
+    ) { resolvedQueryId ->
+        searchUsers(request, resolvedQueryId)
+    }
+
+    private suspend fun searchUsers(
+        request: SearchUsersRequest,
+        queryId: String,
     ): Response<SearchUsersResponse> {
-        val url = graphqlUrl(config, QueryId.SEARCH_TIMELINE, "SearchTimeline")
+        val url = graphqlUrl(config, queryId, "SearchTimeline")
 
         val variables = buildJsonObject {
             request.query?.let { put("rawQuery", it) }
             put("count", request.count)
             put("querySource", "typed_query")
             put("product", SearchType.PEOPLE.product)
+            put("withGrokTranslatedBio", true)
+            put("withQuickPromoteEligibilityTweetFields", false)
             request.cursor?.let { put("cursor", it) }
         }
 
