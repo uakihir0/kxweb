@@ -20,6 +20,8 @@ import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
 import work.socialhub.kxweb.internal.share.InternalUtility.trackResponse
 import work.socialhub.kxweb.internal.share.InternalUtility.withAuthHeaders
 import work.socialhub.kxweb.internal.share.InternalUtility.withCookieHeaders
+import work.socialhub.kxweb.internal.share.TweetParser
+import work.socialhub.kxweb.model.User
 import work.socialhub.kxweb.util.toBlocking
 
 class AccountResourceImpl(
@@ -57,6 +59,11 @@ class AccountResourceImpl(
                         screenName = json["screen_name"]?.jsonPrimitive?.content,
                         userId = json["id_str"]?.jsonPrimitive?.content,
                         name = json["name"]?.jsonPrimitive?.content,
+                    )
+                    result.user = User(
+                        id = result.userId,
+                        screenName = result.screenName,
+                        name = result.name,
                     )
                     return Response(result, body)
                 }
@@ -118,14 +125,16 @@ class AccountResourceImpl(
         val user = fromJson<GraphQLViewerRoot>(body)
             .data?.viewer?.userResults?.result
             ?: throw InternalUtility.handleError(null, body = "Viewer user not found")
-        val screenName = user.core?.screenName ?: user.legacy?.screenName
+        val parsedUser = TweetParser.parseUserResult(user)
+        val screenName = parsedUser.screenName
             ?: throw InternalUtility.handleError(null, body = "Viewer screen name not found")
 
         return Response(
             GetCurrentUserResponse(
-                userId = user.restId,
+                userId = parsedUser.id,
                 screenName = screenName,
-                name = user.core?.name ?: user.legacy?.name,
+                name = parsedUser.name,
+                user = parsedUser,
             ),
             body,
         )
