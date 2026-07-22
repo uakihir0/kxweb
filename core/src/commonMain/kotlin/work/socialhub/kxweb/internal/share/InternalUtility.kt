@@ -194,6 +194,7 @@ object InternalUtility {
         config: XWebConfig,
         method: String = "GET",
         url: String = "",
+        requireClientTransaction: Boolean = false,
     ): HttpRequest = also {
         it.header("authorization", "Bearer $BEARER_TOKEN")
         it.header("user-agent", USER_AGENT)
@@ -219,7 +220,10 @@ object InternalUtility {
             }
         }
 
-        if (config.enableClientTransaction) {
+        val clientTransactionId = config.clientTransactionId
+        if (!clientTransactionId.isNullOrBlank()) {
+            it.header("x-client-transaction-id", clientTransactionId)
+        } else if (config.enableClientTransaction || requireClientTransaction) {
             // Extract path from URL for transaction ID generation
             val path = try {
                 val afterScheme = url.substringAfter("://")
@@ -301,7 +305,10 @@ object InternalUtility {
         it.header("origin", "https://x.com")
         it.header("referer", "https://x.com/")
 
-        if (config.enableClientTransaction) {
+        val clientTransactionId = config.clientTransactionId
+        if (!clientTransactionId.isNullOrBlank()) {
+            it.header("x-client-transaction-id", clientTransactionId)
+        } else if (config.enableClientTransaction) {
             val path = try {
                 val afterScheme = url.substringAfter("://")
                 val pathStart = afterScheme.indexOf('/')
@@ -697,14 +704,23 @@ object InternalUtility {
         url: String,
         queryParams: Map<String, String> = emptyMap(),
         endpoint: String = "",
+        requireClientTransaction: Boolean = false,
     ): HttpRequest {
         // Resolve session from pool if configured
         config.resolveSession(endpoint)
 
+        if (requireClientTransaction &&
+            !isOAuth(config) &&
+            !isGuest(config) &&
+            config.clientTransactionId.isNullOrBlank()
+        ) {
+            ClientTransactionId.refreshPairData(config)
+        }
+
         return when {
             isOAuth(config) -> withOAuthHeaders(config, method, url, queryParams)
             isGuest(config) -> withGuestHeaders(config, GuestTokenProvider.token(config), method, url)
-            else -> withCookieHeaders(config, method, url)
+            else -> withCookieHeaders(config, method, url, requireClientTransaction)
         }
     }
 

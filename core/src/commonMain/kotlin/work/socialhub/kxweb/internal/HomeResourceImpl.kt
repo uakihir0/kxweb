@@ -71,7 +71,13 @@ class HomeResourceImpl(
             .setTimeouts(config)
             .query("variables", variablesStr)
             .query("features", featuresStr)
-            .withAuthHeaders(config, "GET", url, queryParams)
+            .withAuthHeaders(
+                config,
+                "GET",
+                url,
+                queryParams,
+                requireClientTransaction = true,
+            )
 
         val response = httpRequest.get()
         trackResponse(config, operationName, response)
