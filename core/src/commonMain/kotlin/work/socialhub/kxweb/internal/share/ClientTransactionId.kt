@@ -1,46 +1,38 @@
 package work.socialhub.kxweb.internal.share
 
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import work.socialhub.kxweb.util.Sha256Util
 import work.socialhub.khttpclient.HttpRequest
+import work.socialhub.kxweb.XWebConfig
+import work.socialhub.kxweb.internal.share.InternalUtility.USER_AGENT
+import work.socialhub.kxweb.util.Sha256Util
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.floor
+import kotlin.math.roundToInt
+import kotlin.math.sin
 import kotlin.random.Random
 import kotlin.time.Clock
 
 /**
- * Generates x-client-transaction-id headers for X (Twitter) API requests.
- * This is required for cookie-based sessions to pass bot detection.
+ * Generates the per-request x-client-transaction-id used by X web.
  *
- * Reference: Nitter's tid.nim implementation.
- *
- * The algorithm:
- * 1. Fetch "pair" data from external repository (animationKey + verification)
- * 2. Compute SHA-256 hash of: method + "!" + path + "!" + timestamp + secret + animationKey
- * 3. Combine verification bytes, timestamp bytes, hash bytes, and XOR mask
- * 4. Base64-encode the result
- *
- * Pair data source: https://github.com/fa0311/x-client-transaction-id-pair-dict
+ * The verification key and animation data are derived from the authenticated
+ * X home page and its current ondemand.s bundle, following QuaX's implementation.
  */
 object ClientTransactionId {
 
-    private const val PAIR_URL =
-        "https://raw.githubusercontent.com/fa0311/x-client-transaction-id-pair-dict/refs/heads/main/pair.json"
+    private const val HOME_URL = "https://x.com/home"
+    private const val ONDEMAND_URL_TEMPLATE =
+        "https://abs.twimg.com/responsive-web/client-web/ondemand.s.%sa.js"
     private const val SECRET = "obfiowerehiring"
+    private const val TIME_EPOCH_OFFSET_SECONDS = 1_682_924_400L
+    private const val ADDITIONAL_RANDOM_NUMBER = 3
     private const val CACHE_DURATION_SECONDS = 3600L
 
     private var cachedPair: TransactionPair? = null
     private var cacheTimestamp: Long = 0L
-
-    private val json = Json { ignoreUnknownKeys = true }
-
-    @Serializable
-    internal data class PairResponse(
-        val key: String? = null,
-        val key_bytes: List<Int>? = null,
-        val animation_key: String? = null,
-    )
 
     internal data class TransactionPair(
         val keyBytes: ByteArray,
@@ -48,116 +40,282 @@ object ClientTransactionId {
     )
 
     /**
-     * Generate a client transaction ID for the given request path.
-     *
-     * @param method HTTP method (GET, POST, etc.)
-     * @param path The URL path (e.g., "/i/api/graphql/abc/SearchTimeline")
-     * @return Base64-encoded transaction ID, or a random fallback if pair data is unavailable.
+     * Generate an ID for the exact HTTP method and URL path being requested.
      */
     @OptIn(ExperimentalEncodingApi::class)
     fun generate(method: String = "GET", path: String = ""): String {
         val pair = cachedPair ?: return generateSimple()
 
-        try {
-            val now = Clock.System.now().epochSeconds
-            val timeBytes = encodeTimestamp(now)
-
-            // Hash: method + "!" + path + "!" + timestamp + secret + animationKey
-            val hashInput = "$method!$path!$now$SECRET${pair.animationKey}"
+        return try {
+            val timeNow = Clock.System.now().epochSeconds - TIME_EPOCH_OFFSET_SECONDS
+            val timeBytes = encodeTimestampLittleEndian(timeNow)
+            val hashInput = "$method!$path!$timeNow$SECRET${pair.animationKey}"
             val hashBytes = Sha256Util.hash(hashInput.encodeToByteArray())
+            val payload = pair.keyBytes +
+                    timeBytes +
+                    hashBytes.copyOfRange(0, minOf(16, hashBytes.size)) +
+                    byteArrayOf(ADDITIONAL_RANDOM_NUMBER.toByte())
 
-            // Take first 16 bytes of hash
-            val hashSlice = hashBytes.copyOfRange(0, minOf(16, hashBytes.size))
-
-            // Generate random XOR mask (1 byte)
             val xorMask = Random.nextBytes(1)[0]
-
-            // Build payload: [verification_key_bytes] + [time_bytes] + [hash_bytes]
-            val payload = pair.keyBytes + timeBytes + hashSlice
-
-            // XOR the payload with the mask
-            val xored = ByteArray(payload.size) { i ->
-                (payload[i].toInt() xor xorMask.toInt()).toByte()
+            val result = byteArrayOf(xorMask) + ByteArray(payload.size) { index ->
+                (payload[index].toInt() xor xorMask.toInt()).toByte()
             }
-
-            // Final: [xor_mask] + [xored_data]
-            val result = byteArrayOf(xorMask) + xored
-
-            return Base64.encode(result)
+            Base64.encode(result).trimEnd('=')
         } catch (_: Exception) {
-            return generateSimple()
+            generateSimple()
         }
     }
 
     /**
-     * Refresh the pair data from the external repository.
-     * Should be called periodically (default: every hour).
+     * Refresh transaction pair data from the authenticated X web application.
      */
-    suspend fun refreshPairData() {
+    @OptIn(ExperimentalEncodingApi::class)
+    suspend fun refreshPairData(config: XWebConfig? = null) {
         val now = Clock.System.now().epochSeconds
         if (cachedPair != null && (now - cacheTimestamp) < CACHE_DURATION_SECONDS) {
             return
         }
 
         try {
-            val response = HttpRequest()
-                .url(PAIR_URL)
-                .get()
+            val homeRequest = HttpRequest()
+                .url(HOME_URL)
+                .header("accept-language", "en-US,en;q=0.9")
+                .header("cache-control", "no-cache")
+                .header("referer", "https://x.com/")
+                .header("user-agent", USER_AGENT)
+                .header("x-twitter-active-user", "yes")
+                .header("x-twitter-client-language", "en")
 
-            if (response.status in 200..299) {
-                val body = response.stringBody
-                val pairResponse = json.decodeFromString<PairResponse>(body)
-                val keyBytes = pairResponse.key_bytes?.map { it.toByte() }?.toByteArray()
-                val animationKey = pairResponse.animation_key
-
-                if (keyBytes != null && animationKey != null) {
-                    cachedPair = TransactionPair(keyBytes, animationKey)
-                    cacheTimestamp = now
+            val cookie = config?.cookieString ?: config?.let {
+                if (it.authToken != null && it.csrfToken != null) {
+                    "auth_token=${it.authToken}; ct0=${it.csrfToken}"
+                } else {
+                    null
                 }
             }
+            if (!cookie.isNullOrBlank()) {
+                homeRequest.header("cookie", cookie)
+            }
+
+            val homeResponse = homeRequest.get()
+            if (homeResponse.status !in 200..299) return
+            val homeHtml = homeResponse.stringBody
+
+            val verification = Regex(
+                """<meta[^>]*name=["']twitter-site-verification["'][^>]*content=["']([^"']+)["']"""
+            ).find(homeHtml)?.groupValues?.get(1) ?: return
+
+            val chunkIndex = Regex(""",(\d+):["']ondemand\.s["']""")
+                .find(homeHtml)
+                ?.groupValues
+                ?.get(1)
+                ?: return
+            val chunkHash = Regex(""",$chunkIndex:["']([0-9a-f]+)["']""")
+                .find(homeHtml)
+                ?.groupValues
+                ?.get(1)
+                ?: return
+
+            val ondemandResponse = HttpRequest()
+                .url(ONDEMAND_URL_TEMPLATE.replace("%s", chunkHash))
+                .header("user-agent", USER_AGENT)
+                .get()
+            if (ondemandResponse.status !in 200..299) return
+
+            val indices = Regex("""\(\w+\[(\d{1,2})],\s*16\)""")
+                .findAll(ondemandResponse.stringBody)
+                .map { it.groupValues[1].toInt() }
+                .toList()
+            if (indices.size < 2) return
+
+            val keyBytes = Base64.decode(verification)
+            val animationKey = computeAnimationKey(
+                keyBytes = keyBytes,
+                rowIndex = indices.first(),
+                keyByteIndices = indices.drop(1),
+                homeHtml = homeHtml,
+            )
+            cachedPair = TransactionPair(keyBytes, animationKey)
+            cacheTimestamp = now
         } catch (_: Exception) {
-            // Pair data fetch failed; will use simple fallback
+            // Keep the previous cached pair, if any.
         }
     }
 
-    /**
-     * Check if pair data is cached and available.
-     */
     fun isPairDataAvailable(): Boolean = cachedPair != null
 
-    /**
-     * Clear cached pair data (for testing).
-     */
     internal fun clearCache() {
         cachedPair = null
         cacheTimestamp = 0L
     }
 
-    /**
-     * Set pair data directly (for testing).
-     */
     internal fun setPairData(keyBytes: ByteArray, animationKey: String) {
         cachedPair = TransactionPair(keyBytes, animationKey)
         cacheTimestamp = Clock.System.now().epochSeconds
     }
 
-    /**
-     * Simple random fallback transaction ID (original implementation).
-     */
+    private fun computeAnimationKey(
+        keyBytes: ByteArray,
+        rowIndex: Int,
+        keyByteIndices: List<Int>,
+        homeHtml: String,
+    ): String {
+        val frames = Regex(
+            """<svg[^>]*id=["']loading-x-anim-[^"']+["'][^>]*>[\s\S]*?</svg>""",
+            RegexOption.IGNORE_CASE,
+        ).findAll(homeHtml).map { it.value }.toList()
+        val frame = frames[unsigned(keyBytes[5]) % 4]
+        val paths = Regex(
+            """<path[^>]*\sd=["']([^"']+)["']""",
+            RegexOption.IGNORE_CASE,
+        ).findAll(frame).map { it.groupValues[1] }.toList()
+        val animationPath = paths[1].substringAfter("C")
+
+        val rows = animationPath.split("C").mapNotNull { segment ->
+            val values = segment.replace(Regex("""[^\d]+"""), " ")
+                .trim()
+                .split(Regex("""\s+"""))
+                .filter { it.isNotEmpty() }
+                .map { it.toInt() }
+            values.takeIf { it.isNotEmpty() }
+        }
+
+        val frameRowIndex = unsigned(keyBytes[rowIndex]) % 16
+        val frameTimeProduct = keyByteIndices.fold(1) { result, index ->
+            result * (unsigned(keyBytes[index]) % 16)
+        }
+        val frameTime = jsRound(frameTimeProduct / 10.0) * 10
+        return animate(rows[frameRowIndex], frameTime / 4096.0)
+    }
+
+    private fun animate(frames: List<Int>, targetTime: Double): String {
+        val fromColor = listOf(
+            frames[0].toDouble(),
+            frames[1].toDouble(),
+            frames[2].toDouble(),
+            1.0,
+        )
+        val toColor = listOf(
+            frames[3].toDouble(),
+            frames[4].toDouble(),
+            frames[5].toDouble(),
+            1.0,
+        )
+        val toRotation = solve(frames[6].toDouble(), 60.0, 360.0, true)
+        val curves = frames.drop(7).mapIndexed { index, value ->
+            solve(value.toDouble(), if (index % 2 != 0) -1.0 else 0.0, 1.0, false)
+        }
+        val value = Cubic(curves).getValue(targetTime)
+        val color = interpolate(fromColor, toColor, value)
+            .map { it.coerceIn(0.0, 255.0) }
+        val radians = interpolate(listOf(0.0), listOf(toRotation), value)[0] * PI / 180.0
+        val matrix = listOf(cos(radians), -sin(radians), sin(radians), cos(radians))
+
+        val values = mutableListOf<String>()
+        color.dropLast(1).forEach { values.add(it.roundToInt().toString(16)) }
+        matrix.forEach { matrixValue ->
+            val hex = floatToHex(abs(roundTo2(matrixValue)))
+            values.add(if (hex.startsWith(".")) "0${hex.lowercase()}" else hex.ifEmpty { "0" })
+        }
+        values.add("0")
+        values.add("0")
+        return values.joinToString("").replace(".", "").replace("-", "")
+    }
+
+    private fun solve(value: Double, min: Double, max: Double, rounding: Boolean): Double {
+        val result = value * (max - min) / 255.0 + min
+        return if (rounding) floor(result) else roundTo2(result)
+    }
+
+    private fun interpolate(from: List<Double>, to: List<Double>, fraction: Double): List<Double> {
+        return from.indices.map { index ->
+            from[index] * (1 - fraction) + to[index] * fraction
+        }
+    }
+
+    private fun floatToHex(value: Double): String {
+        val integer = value.toInt()
+        val result = StringBuilder()
+        if (integer > 0) {
+            result.append(integer.toString(16))
+        }
+
+        var fraction = value - integer
+        if (fraction == 0.0) return result.toString()
+        result.append('.')
+        repeat(16) {
+            if (fraction == 0.0) return@repeat
+            fraction *= 16
+            val digit = fraction.toInt()
+            fraction -= digit
+            result.append(digit.toString(16))
+        }
+        return result.toString()
+    }
+
+    private fun roundTo2(value: Double): Double = (value * 100).roundToInt() / 100.0
+
+    private fun jsRound(value: Double): Int {
+        val lower = floor(value)
+        return if (value - lower >= 0.5) lower.toInt() + 1 else lower.toInt()
+    }
+
+    private fun unsigned(value: Byte): Int = value.toInt() and 0xFF
+
     private fun generateSimple(): String {
         val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
         return (1..20).map { chars.random() }.joinToString("")
     }
 
-    /**
-     * Encode a Unix timestamp into a compact byte representation.
-     */
-    private fun encodeTimestamp(epochSeconds: Long): ByteArray {
+    private fun encodeTimestampLittleEndian(epochSeconds: Long): ByteArray {
         return byteArrayOf(
-            ((epochSeconds shr 24) and 0xFF).toByte(),
-            ((epochSeconds shr 16) and 0xFF).toByte(),
-            ((epochSeconds shr 8) and 0xFF).toByte(),
             (epochSeconds and 0xFF).toByte(),
+            ((epochSeconds shr 8) and 0xFF).toByte(),
+            ((epochSeconds shr 16) and 0xFF).toByte(),
+            ((epochSeconds shr 24) and 0xFF).toByte(),
         )
+    }
+
+    private class Cubic(
+        private val curves: List<Double>,
+    ) {
+        fun getValue(time: Double): Double {
+            if (time <= 0.0) {
+                val gradient = when {
+                    curves[0] > 0.0 -> curves[1] / curves[0]
+                    curves[1] == 0.0 && curves[2] > 0.0 -> curves[3] / curves[2]
+                    else -> 0.0
+                }
+                return gradient * time
+            }
+            if (time >= 1.0) {
+                val gradient = when {
+                    curves[2] < 1.0 -> (curves[3] - 1.0) / (curves[2] - 1.0)
+                    curves[2] == 1.0 && curves[0] < 1.0 ->
+                        (curves[1] - 1.0) / (curves[0] - 1.0)
+                    else -> 0.0
+                }
+                return 1.0 + gradient * (time - 1.0)
+            }
+
+            var start = 0.0
+            var end = 1.0
+            var middle = 0.0
+            repeat(100) {
+                middle = (start + end) / 2
+                val estimate = calculate(curves[0], curves[2], middle)
+                if (abs(time - estimate) < 0.00001) {
+                    return calculate(curves[1], curves[3], middle)
+                }
+                if (estimate < time) start = middle else end = middle
+            }
+            return calculate(curves[1], curves[3], middle)
+        }
+
+        private fun calculate(a: Double, b: Double, middle: Double): Double {
+            return 3.0 * a * (1 - middle) * (1 - middle) * middle +
+                    3.0 * b * (1 - middle) * middle * middle +
+                    middle * middle * middle
+        }
     }
 }
