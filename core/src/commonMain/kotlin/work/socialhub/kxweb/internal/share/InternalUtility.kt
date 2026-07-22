@@ -30,7 +30,7 @@ object InternalUtility {
 
     const val USER_AGENT =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
 
     val json = Json {
         explicitNulls = false
@@ -82,7 +82,10 @@ object InternalUtility {
         }
 
         return XWebException(
-            message = body ?: exception?.message ?: "Unknown error",
+            message = body?.takeIf { it.isNotBlank() }
+                ?: status?.let { "HTTP $it" }
+                ?: exception?.message
+                ?: "Unknown error",
             exception = exception,
             status = status,
             body = body,
