@@ -81,16 +81,18 @@ object TweetParser {
             id = userResult.restId,
             screenName = userCore?.screenName ?: userLegacy?.screenName,
             name = userCore?.name ?: userLegacy?.name,
-            description = userLegacy?.description,
-            profileImageUrl = userLegacy?.profileImageUrlHttps,
+            description = userResult.profileBio?.description ?: userLegacy?.description,
+            profileImageUrl = userResult.avatar?.imageUrl ?: userLegacy?.profileImageUrlHttps,
             profileBannerUrl = userLegacy?.profileBannerUrl,
             followersCount = userLegacy?.followersCount,
             followingCount = userLegacy?.friendsCount,
             statusesCount = userLegacy?.statusesCount,
             listedCount = userLegacy?.listedCount,
-            verified = userResult.isBlueVerified ?: userLegacy?.verified,
+            verified = userResult.verification?.verified
+                ?: userResult.isBlueVerified
+                ?: userLegacy?.verified,
             createdAt = userCore?.createdAt ?: userLegacy?.createdAt,
-            location = userLegacy?.location,
+            location = userResult.location?.location ?: userLegacy?.location,
             url = userLegacy?.url,
         )
     }
