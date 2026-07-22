@@ -91,6 +91,12 @@ open class XWebConfig {
      */
     var enableClientTransaction: Boolean = false
 
+    /**
+     * Explicit x-client-transaction-id header value.
+     * When set, this takes precedence over generated values.
+     */
+    var clientTransactionId: String? = null
+
     // == Session Pool ==
 
     /**
