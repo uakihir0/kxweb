@@ -21,6 +21,7 @@ import work.socialhub.kxweb.internal.entity.UserLegacy
 import work.socialhub.kxweb.internal.entity.UserResult
 import work.socialhub.kxweb.internal.entity.UserResultCore
 import work.socialhub.kxweb.internal.entity.UserResults
+import work.socialhub.kxweb.internal.entity.UserVerification
 import work.socialhub.kxweb.internal.share.TweetParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -251,6 +252,18 @@ class TweetParserTest {
         assertEquals("Tue Mar 01 00:00:00 +0000 2010", user.createdAt)
         assertEquals("Tokyo", user.location)
         assertEquals("https://example.com", user.url)
+    }
+
+    @Test
+    fun testParseUserResultPreservesBlueVerification() {
+        val userResult = UserResult(
+            verification = UserVerification(verified = false),
+            isBlueVerified = true,
+        )
+
+        val user = TweetParser.parseUserResult(userResult)
+
+        assertEquals(true, user.verified)
     }
 
     @Test

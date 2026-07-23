@@ -179,8 +179,34 @@ data class UserResult(
     /** User core info (name, screen_name) — used by TweetResultByRestId */
     val core: UserResultCore? = null,
     val legacy: UserLegacy? = null,
+    val avatar: UserAvatar? = null,
+    val location: UserLocation? = null,
+    val verification: UserVerification? = null,
+    @SerialName("profile_bio")
+    val profileBio: UserProfileBio? = null,
     @SerialName("is_blue_verified")
     val isBlueVerified: Boolean? = null,
+)
+
+@Serializable
+data class UserAvatar(
+    @SerialName("image_url")
+    val imageUrl: String? = null,
+)
+
+@Serializable
+data class UserLocation(
+    val location: String? = null,
+)
+
+@Serializable
+data class UserVerification(
+    val verified: Boolean? = null,
+)
+
+@Serializable
+data class UserProfileBio(
+    val description: String? = null,
 )
 
 @Serializable
