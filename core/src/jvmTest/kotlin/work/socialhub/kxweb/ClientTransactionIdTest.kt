@@ -239,6 +239,36 @@ class ClientTransactionIdTest {
     }
 
     @Test
+    fun testRefreshPairDataBacksOffAfterFailureWithCachedPair() = runTest {
+        ClientTransactionId.setPairData(
+            keyBytes = byteArrayOf(0x01, 0x02, 0x03, 0x04),
+            animationKey = "stale-animation-key",
+            cachedAt = 0L,
+        )
+        var loadCount = 0
+        val loadHome = suspend {
+            loadCount++
+            ClientTransactionId.TransactionResponse(
+                status = 503,
+                body = "service unavailable",
+            )
+        }
+        val loadOndemand: suspend (String) -> ClientTransactionId.TransactionResponse = {
+            error("ondemand loader should not be called")
+        }
+
+        try {
+            ClientTransactionId.refreshPairData(loadHome, loadOndemand)
+            ClientTransactionId.refreshPairData(loadHome, loadOndemand)
+
+            assertEquals(1, loadCount)
+            assertTrue(ClientTransactionId.isPairDataAvailable())
+        } finally {
+            ClientTransactionId.clearCache()
+        }
+    }
+
+    @Test
     fun testExplicitTransactionIdIsConsumedAtomically() = runTest {
         val config = XWebConfig().apply {
             clientTransactionId = "one-shot-id"
