@@ -799,6 +799,7 @@ object InternalUtility {
         operationName: String,
         queryId: String,
         refreshOnNotFound: Boolean = true,
+        config: XWebConfig? = null,
         execute: suspend (resolvedQueryId: String) -> T,
     ): T {
         val initialQueryId = QueryIdResolver.cachedId(operationName) ?: queryId
@@ -810,6 +811,7 @@ object InternalUtility {
                     operationName = operationName,
                     fallback = initialQueryId,
                     forceRefresh = true,
+                    config = config,
                 )
                 if (newQueryId != initialQueryId) {
                     execute(newQueryId)

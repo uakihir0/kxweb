@@ -34,6 +34,7 @@ class SearchResourceImpl(
     ): Response<SearchSearchResponse> = withQueryIdRetry(
         operationName = "SearchTimeline",
         queryId = QueryId.SEARCH_TIMELINE,
+        config = config,
     ) { resolvedQueryId ->
         searchTweets(request, resolvedQueryId)
     }
@@ -111,6 +112,7 @@ class SearchResourceImpl(
             operationName = "SearchTimeline",
             queryId = QueryId.SEARCH_TIMELINE,
             refreshOnNotFound = !isGuest(config),
+            config = config,
         ) { resolvedQueryId ->
             searchUsers(request, resolvedQueryId)
         }
