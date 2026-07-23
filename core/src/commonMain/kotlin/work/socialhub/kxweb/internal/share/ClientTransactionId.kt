@@ -7,6 +7,7 @@ import work.socialhub.khttpclient.HttpRequest
 import work.socialhub.kxweb.XWebConfig
 import work.socialhub.kxweb.internal.share.InternalUtility.USER_AGENT
 import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
+import work.socialhub.kxweb.internal.share.InternalUtility.isGuest
 import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
 import work.socialhub.kxweb.util.Sha256Util
 import kotlin.concurrent.Volatile
@@ -98,26 +99,7 @@ object ClientTransactionId {
             }
 
             try {
-                val homeRequest = createRequest(config)
-                    .url(HOME_URL)
-                    .header("accept-language", "en-US,en;q=0.9")
-                    .header("cache-control", "no-cache")
-                    .header("referer", "https://x.com/")
-                    .header("user-agent", USER_AGENT)
-                    .header("x-twitter-active-user", "yes")
-                    .header("x-twitter-client-language", "en")
-
-                val cookie = config?.cookieString ?: config?.let {
-                    if (it.authToken != null && it.csrfToken != null) {
-                        "auth_token=${it.authToken}; ct0=${it.csrfToken}"
-                    } else {
-                        null
-                    }
-                }
-                if (!cookie.isNullOrBlank()) {
-                    homeRequest.header("cookie", cookie)
-                }
-
+                val homeRequest = createHomeRequest(config)
                 val homeResponse = homeRequest.get()
                 if (homeResponse.status !in 200..299) return@withLock
                 val homeHtml = homeResponse.stringBody
@@ -183,6 +165,36 @@ object ClientTransactionId {
             httpRequest(config).setTimeouts(config)
         } else {
             HttpRequest()
+        }
+    }
+
+    internal fun createHomeRequest(config: XWebConfig?): HttpRequest {
+        return createRequest(config)
+            .url(HOME_URL)
+            .header("accept-language", "en-US,en;q=0.9")
+            .header("cache-control", "no-cache")
+            .header("referer", "https://x.com/")
+            .header("user-agent", USER_AGENT)
+            .header("x-twitter-active-user", "yes")
+            .header("x-twitter-client-language", "en")
+            .also { request ->
+                val cookie = config
+                    ?.takeUnless(::isGuest)
+                    ?.let(::transactionCookie)
+                if (!cookie.isNullOrBlank()) {
+                    request.header("cookie", cookie)
+                }
+            }
+    }
+
+    private fun transactionCookie(config: XWebConfig): String? {
+        return config.cookieString ?: if (
+            config.authToken != null &&
+            config.csrfToken != null
+        ) {
+            "auth_token=${config.authToken}; ct0=${config.csrfToken}"
+        } else {
+            null
         }
     }
 
