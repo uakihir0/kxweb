@@ -105,12 +105,15 @@ class SearchResourceImpl(
 
     override suspend fun searchUsers(
         request: SearchUsersRequest
-    ): Response<SearchUsersResponse> = withQueryIdRetry(
-        operationName = "SearchTimeline",
-        queryId = QueryId.SEARCH_TIMELINE,
-        refreshOnNotFound = !isGuest(config),
-    ) { resolvedQueryId ->
-        searchUsers(request, resolvedQueryId)
+    ): Response<SearchUsersResponse> {
+        config.resolveSession("SearchTimeline")
+        return withQueryIdRetry(
+            operationName = "SearchTimeline",
+            queryId = QueryId.SEARCH_TIMELINE,
+            refreshOnNotFound = !isGuest(config),
+        ) { resolvedQueryId ->
+            searchUsers(request, resolvedQueryId)
+        }
     }
 
     private suspend fun searchUsers(

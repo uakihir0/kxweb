@@ -1,6 +1,7 @@
 package work.socialhub.kxweb
 
 import work.socialhub.kxweb.entity.share.RateLimit
+import work.socialhub.kxweb.internal.share.InternalUtility
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -181,6 +182,20 @@ class XWebSessionPoolTest {
                 assertNull(config.authToken)
             }
         }
+    }
+
+    @Test
+    fun testPooledCookieSessionIsNotClassifiedAsGuestAfterResolution() {
+        val config = XWebConfig()
+        config.sessionPool = XWebSessionPool(
+            listOf(XWebSession.cookie("auth1", "csrf1"))
+        )
+
+        assertTrue(InternalUtility.isGuest(config))
+
+        config.resolveSession("SearchTimeline")
+
+        assertFalse(InternalUtility.isGuest(config))
     }
 
     @Test
