@@ -235,6 +235,33 @@ object InternalUtility {
             )
     }
 
+    /**
+     * Apply cookie-based authentication headers after preparing transaction
+     * data when generated client transaction IDs are enabled.
+     */
+    suspend fun HttpRequest.withPreparedCookieHeaders(
+        config: XWebConfig,
+        method: String = "GET",
+        url: String = "",
+        requireClientTransaction: Boolean = false,
+    ): HttpRequest {
+        val path = transactionPath(url)
+        val clientTransactionId = prepareClientTransactionId(
+            config,
+            method,
+            path,
+            requireClientTransaction,
+        )
+        return withCookieAuthHeaders(config)
+            .withResolvedClientTransactionHeader(
+                config,
+                method,
+                path,
+                requireClientTransaction,
+                clientTransactionId,
+            )
+    }
+
     private fun HttpRequest.withCookieAuthHeaders(
         config: XWebConfig,
     ): HttpRequest = also {
@@ -362,9 +389,27 @@ object InternalUtility {
     ): HttpRequest = also {
         if (clientTransactionId != null) {
             it.header("x-client-transaction-id", clientTransactionId)
-        } else if (config.enableClientTransaction || requireClientTransaction) {
+        } else if (
+            (config.enableClientTransaction || requireClientTransaction) &&
+            ClientTransactionId.isPairDataAvailable()
+        ) {
             it.header("x-client-transaction-id", generateClientTransactionId(method, path))
         }
+    }
+
+    private suspend fun prepareClientTransactionId(
+        config: XWebConfig,
+        method: String,
+        path: String,
+        requireClientTransaction: Boolean,
+    ): String? {
+        val configured = configuredClientTransactionId(config, method, path)
+        if (configured == null &&
+            (requireClientTransaction || config.enableClientTransaction)
+        ) {
+            ClientTransactionId.refreshPairData(config)
+        }
+        return configured
     }
 
     private fun configuredClientTransactionId(
@@ -801,12 +846,12 @@ object InternalUtility {
         }
 
         val path = transactionPath(url)
-        val clientTransactionId = configuredClientTransactionId(config, method, path)
-        if (clientTransactionId == null &&
-            (requireClientTransaction || config.enableClientTransaction)
-        ) {
-            ClientTransactionId.refreshPairData(config)
-        }
+        val clientTransactionId = prepareClientTransactionId(
+            config,
+            method,
+            path,
+            requireClientTransaction,
+        )
 
         val request = if (isGuest(config)) {
             withGuestAuthHeaders(GuestTokenProvider.token(config))
