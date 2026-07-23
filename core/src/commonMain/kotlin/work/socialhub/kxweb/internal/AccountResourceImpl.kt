@@ -1,16 +1,13 @@
 package work.socialhub.kxweb.internal
 
-import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import work.socialhub.kxweb.XWebConfig
 import work.socialhub.kxweb.api.AccountResource
 import work.socialhub.kxweb.domain.QueryId
-import work.socialhub.kxweb.domain.Service
 import work.socialhub.kxweb.entity.account.GetCurrentUserResponse
 import work.socialhub.kxweb.entity.share.Response
 import work.socialhub.kxweb.internal.entity.GraphQLViewerRoot
-import work.socialhub.kxweb.internal.entity.RestAccountUser
 import work.socialhub.kxweb.internal.share.InternalUtility
 import work.socialhub.kxweb.internal.share.InternalUtility.fromJson
 import work.socialhub.kxweb.internal.share.InternalUtility.graphqlUrl
@@ -18,7 +15,6 @@ import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
 import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
 import work.socialhub.kxweb.internal.share.InternalUtility.trackResponse
 import work.socialhub.kxweb.internal.share.InternalUtility.withAuthHeaders
-import work.socialhub.kxweb.internal.share.InternalUtility.withPreparedCookieHeaders
 import work.socialhub.kxweb.internal.share.TweetParser
 import work.socialhub.kxweb.util.toBlocking
 
@@ -26,54 +22,8 @@ class AccountResourceImpl(
     private val config: XWebConfig
 ) : AccountResource {
 
-    override suspend fun getCurrentUser(): Response<GetCurrentUserResponse> {
-        try {
-            return getCurrentUserFromViewer()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            // Older sessions may still support the legacy REST endpoints below.
-        }
-
-        val urls = listOf(
-            "${Service.X_REST_API.uri}/1.1/account/settings.json",
-            "${Service.X_REST_API.uri}/1.1/account/verify_credentials.json",
-        )
-
-        for (url in urls) {
-            try {
-                val request = httpRequest(config)
-                    .url(url)
-                    .setTimeouts(config)
-                    .withPreparedCookieHeaders(config, "GET", url)
-
-                val response = request.get()
-                trackResponse(config, "AccountSettings", response)
-                val body = response.stringBody
-
-                if (response.status == 200) {
-                    val user = fromJson<RestAccountUser>(body).toUser()
-                    val result = GetCurrentUserResponse(
-                        screenName = user.screenName,
-                        userId = user.id,
-                        name = user.name,
-                        user = user,
-                    )
-                    return Response(result, body)
-                }
-
-                if (response.status in listOf(401, 403)) {
-                    throw InternalUtility.handleError(null, response.status, body)
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                if (url == urls.last()) throw InternalUtility.handleError(e)
-            }
-        }
-
-        throw InternalUtility.handleError(null, body = "Failed to get current user from all endpoints")
-    }
+    override suspend fun getCurrentUser(): Response<GetCurrentUserResponse> =
+        getCurrentUserFromViewer()
 
     private suspend fun getCurrentUserFromViewer(): Response<GetCurrentUserResponse> {
         val url = graphqlUrl(config, QueryId.VIEWER, "Viewer")
