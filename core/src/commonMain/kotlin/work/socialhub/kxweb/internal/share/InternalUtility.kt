@@ -798,13 +798,14 @@ object InternalUtility {
     suspend fun <T> withQueryIdRetry(
         operationName: String,
         queryId: String,
+        refreshOnNotFound: Boolean = true,
         execute: suspend (resolvedQueryId: String) -> T,
     ): T {
         val initialQueryId = QueryIdResolver.cachedId(operationName) ?: queryId
         return try {
             execute(initialQueryId)
         } catch (e: XWebException) {
-            if (e.status == 404) {
+            if (e.status == 404 && refreshOnNotFound) {
                 val newQueryId = QueryIdResolver.resolve(
                     operationName = operationName,
                     fallback = initialQueryId,

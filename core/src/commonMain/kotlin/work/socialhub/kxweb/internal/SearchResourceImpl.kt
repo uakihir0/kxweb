@@ -16,6 +16,7 @@ import work.socialhub.kxweb.internal.share.InternalUtility
 import work.socialhub.kxweb.internal.share.InternalUtility.fromJson
 import work.socialhub.kxweb.internal.share.InternalUtility.graphqlUrl
 import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
+import work.socialhub.kxweb.internal.share.InternalUtility.isGuest
 import work.socialhub.kxweb.internal.share.InternalUtility.searchFeatures
 import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
 import work.socialhub.kxweb.internal.share.InternalUtility.trackResponse
@@ -107,6 +108,7 @@ class SearchResourceImpl(
     ): Response<SearchUsersResponse> = withQueryIdRetry(
         operationName = "SearchTimeline",
         queryId = QueryId.SEARCH_TIMELINE,
+        refreshOnNotFound = !isGuest(config),
     ) { resolvedQueryId ->
         searchUsers(request, resolvedQueryId)
     }
