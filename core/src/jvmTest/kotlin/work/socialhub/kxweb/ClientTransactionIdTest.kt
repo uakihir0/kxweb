@@ -1,6 +1,8 @@
 package work.socialhub.kxweb
 
+import work.socialhub.khttpclient.HttpRequest
 import work.socialhub.kxweb.internal.share.ClientTransactionId
+import work.socialhub.kxweb.internal.share.InternalUtility.withGuestHeaders
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -91,5 +93,28 @@ class ClientTransactionIdTest {
         assertEquals(101L, request.requestTimeoutMillis)
         assertEquals(202L, request.connectTimeoutMillis)
         assertEquals(303L, request.socketTimeoutMillis)
+    }
+
+    @Test
+    fun testRequiredGuestTransactionHeader() {
+        ClientTransactionId.setPairData(
+            byteArrayOf(0x01, 0x02, 0x03, 0x04),
+            "test-animation-key",
+        )
+        val config = XWebConfig()
+
+        try {
+            val request = HttpRequest().withGuestHeaders(
+                config = config,
+                guestToken = "guest-token",
+                method = "GET",
+                url = "https://x.com/i/api/graphql/abc/SearchTimeline",
+                requireClientTransaction = true,
+            )
+
+            assertTrue(request.header["x-client-transaction-id"].orEmpty().isNotBlank())
+        } finally {
+            ClientTransactionId.clearCache()
+        }
     }
 }
