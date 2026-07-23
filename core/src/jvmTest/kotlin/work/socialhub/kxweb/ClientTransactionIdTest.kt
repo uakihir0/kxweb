@@ -77,4 +77,19 @@ class ClientTransactionIdTest {
         ClientTransactionId.clearCache()
         assertFalse(ClientTransactionId.isPairDataAvailable())
     }
+
+    @Test
+    fun testCreateRequestUsesConfiguredTimeouts() {
+        val config = XWebConfig().apply {
+            requestTimeoutMillis = 101L
+            connectTimeoutMillis = 202L
+            socketTimeoutMillis = 303L
+        }
+
+        val request = ClientTransactionId.createRequest(config)
+
+        assertEquals(101L, request.requestTimeoutMillis)
+        assertEquals(202L, request.connectTimeoutMillis)
+        assertEquals(303L, request.socketTimeoutMillis)
+    }
 }

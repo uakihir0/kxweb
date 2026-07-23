@@ -1,8 +1,11 @@
 package work.socialhub.kxweb.internal.share
 
+import kotlinx.coroutines.CancellationException
 import work.socialhub.khttpclient.HttpRequest
 import work.socialhub.kxweb.XWebConfig
 import work.socialhub.kxweb.internal.share.InternalUtility.USER_AGENT
+import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
+import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
 import work.socialhub.kxweb.util.Sha256Util
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
@@ -77,7 +80,7 @@ object ClientTransactionId {
         }
 
         try {
-            val homeRequest = HttpRequest()
+            val homeRequest = createRequest(config)
                 .url(HOME_URL)
                 .header("accept-language", "en-US,en;q=0.9")
                 .header("cache-control", "no-cache")
@@ -116,7 +119,7 @@ object ClientTransactionId {
                 ?.get(1)
                 ?: return
 
-            val ondemandResponse = HttpRequest()
+            val ondemandResponse = createRequest(config)
                 .url(ONDEMAND_URL_TEMPLATE.replace("%s", chunkHash))
                 .header("user-agent", USER_AGENT)
                 .get()
@@ -137,6 +140,8 @@ object ClientTransactionId {
             )
             cachedPair = TransactionPair(keyBytes, animationKey)
             cacheTimestamp = now
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {
             // Keep the previous cached pair, if any.
         }
@@ -152,6 +157,14 @@ object ClientTransactionId {
     internal fun setPairData(keyBytes: ByteArray, animationKey: String) {
         cachedPair = TransactionPair(keyBytes, animationKey)
         cacheTimestamp = Clock.System.now().epochSeconds
+    }
+
+    internal fun createRequest(config: XWebConfig?): HttpRequest {
+        return if (config != null) {
+            httpRequest(config).setTimeouts(config)
+        } else {
+            HttpRequest()
+        }
     }
 
     private fun computeAnimationKey(
