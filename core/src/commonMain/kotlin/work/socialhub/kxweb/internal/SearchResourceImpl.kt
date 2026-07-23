@@ -3,6 +3,7 @@ package work.socialhub.kxweb.internal
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import work.socialhub.kxweb.XWebConfig
+import work.socialhub.kxweb.XWebRequestContext
 import work.socialhub.kxweb.api.SearchResource
 import work.socialhub.kxweb.domain.QueryId
 import work.socialhub.kxweb.entity.search.SearchSearchRequest
@@ -32,21 +33,23 @@ class SearchResourceImpl(
     override suspend fun searchTweets(
         request: SearchSearchRequest
     ): Response<SearchSearchResponse> {
-        config.resolveSession("SearchTimeline")
+        val context = config.resolveRequestContext("SearchTimeline")
         return withQueryIdRetry(
             operationName = "SearchTimeline",
             queryId = QueryId.SEARCH_TIMELINE,
-            config = config,
+            config = context.config,
         ) { resolvedQueryId ->
-            searchTweets(request, resolvedQueryId)
+            searchTweets(request, resolvedQueryId, context)
         }
     }
 
     private suspend fun searchTweets(
         request: SearchSearchRequest,
         queryId: String,
+        context: XWebRequestContext,
     ): Response<SearchSearchResponse> {
-        val url = graphqlUrl(config, queryId, "SearchTimeline")
+        val requestConfig = context.config
+        val url = graphqlUrl(requestConfig, queryId, "SearchTimeline")
 
         val variables = buildJsonObject {
             request.query?.let { put("rawQuery", it) }
@@ -66,13 +69,13 @@ class SearchResourceImpl(
         val featuresStr = features.toString()
         val queryParams = mapOf("variables" to variablesStr, "features" to featuresStr)
 
-        val httpRequest = httpRequest(config)
+        val httpRequest = httpRequest(requestConfig)
             .url(url)
-            .setTimeouts(config)
+            .setTimeouts(requestConfig)
             .query("variables", variablesStr)
             .query("features", featuresStr)
             .withAuthHeaders(
-                config,
+                requestConfig,
                 "GET",
                 url,
                 queryParams,
@@ -81,7 +84,7 @@ class SearchResourceImpl(
             )
 
         val response = httpRequest.get()
-        trackResponse(config, "SearchTimeline", response)
+        trackResponse(context, "SearchTimeline", response)
         val responseBody = response.stringBody
 
         if (response.status !in 200..299) {
@@ -111,22 +114,24 @@ class SearchResourceImpl(
     override suspend fun searchUsers(
         request: SearchUsersRequest
     ): Response<SearchUsersResponse> {
-        config.resolveSession("SearchTimeline")
+        val context = config.resolveRequestContext("SearchTimeline")
         return withQueryIdRetry(
             operationName = "SearchTimeline",
             queryId = QueryId.SEARCH_TIMELINE,
-            refreshOnNotFound = !isGuest(config),
-            config = config,
+            refreshOnNotFound = !isGuest(context.config),
+            config = context.config,
         ) { resolvedQueryId ->
-            searchUsers(request, resolvedQueryId)
+            searchUsers(request, resolvedQueryId, context)
         }
     }
 
     private suspend fun searchUsers(
         request: SearchUsersRequest,
         queryId: String,
+        context: XWebRequestContext,
     ): Response<SearchUsersResponse> {
-        val url = graphqlUrl(config, queryId, "SearchTimeline")
+        val requestConfig = context.config
+        val url = graphqlUrl(requestConfig, queryId, "SearchTimeline")
 
         val variables = buildJsonObject {
             request.query?.let { put("rawQuery", it) }
@@ -146,13 +151,13 @@ class SearchResourceImpl(
         val featuresStr = features.toString()
         val queryParams = mapOf("variables" to variablesStr, "features" to featuresStr)
 
-        val httpRequest = httpRequest(config)
+        val httpRequest = httpRequest(requestConfig)
             .url(url)
-            .setTimeouts(config)
+            .setTimeouts(requestConfig)
             .query("variables", variablesStr)
             .query("features", featuresStr)
             .withAuthHeaders(
-                config,
+                requestConfig,
                 "GET",
                 url,
                 queryParams,
@@ -161,7 +166,7 @@ class SearchResourceImpl(
             )
 
         val response = httpRequest.get()
-        trackResponse(config, "SearchTimeline", response)
+        trackResponse(context, "SearchTimeline", response)
         val responseBody = response.stringBody
 
         if (response.status !in 200..299) {
