@@ -2,7 +2,10 @@ package work.socialhub.kxweb.internal.share
 
 import kotlinx.coroutines.CancellationException
 import work.socialhub.khttpclient.HttpRequest
+import work.socialhub.kxweb.XWebConfig
 import work.socialhub.kxweb.internal.share.InternalUtility.USER_AGENT
+import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
+import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
 import kotlin.concurrent.Volatile
 
 object QueryIdResolver {
@@ -25,8 +28,9 @@ object QueryIdResolver {
         operationName: String,
         fallback: String,
         forceRefresh: Boolean = false,
+        config: XWebConfig? = null,
     ): String = resolveWithRefresh(operationName, fallback, forceRefresh) {
-        refreshFromBundles()
+        refreshFromBundles(config)
     }
 
     internal suspend fun resolveWithRefresh(
@@ -54,14 +58,14 @@ object QueryIdResolver {
         fetchCount = 0
     }
 
-    private suspend fun refreshFromBundles() {
-        val html = fetchPage("https://x.com")
+    private suspend fun refreshFromBundles(config: XWebConfig?) {
+        val html = fetchPage("https://x.com", config)
         val scriptUrls = extractScriptUrls(html)
         val ids = mutableMapOf<String, String>()
 
         for (scriptUrl in scriptUrls) {
             try {
-                val jsContent = fetchPage(scriptUrl)
+                val jsContent = fetchPage(scriptUrl, config)
                 val extracted = extractQueryIds(jsContent)
                 ids.putAll(extracted)
             } catch (e: CancellationException) {
@@ -77,14 +81,22 @@ object QueryIdResolver {
         }
     }
 
-    private suspend fun fetchPage(url: String): String {
-        val request = HttpRequest()
+    private suspend fun fetchPage(url: String, config: XWebConfig?): String {
+        val request = createRequest(config)
             .url(url)
             .header("user-agent", USER_AGENT)
             .header("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 
         val response = request.get()
         return response.stringBody
+    }
+
+    internal fun createRequest(config: XWebConfig?): HttpRequest {
+        return if (config != null) {
+            httpRequest(config).setTimeouts(config)
+        } else {
+            HttpRequest()
+        }
     }
 
     internal fun extractScriptUrls(html: String): List<String> {

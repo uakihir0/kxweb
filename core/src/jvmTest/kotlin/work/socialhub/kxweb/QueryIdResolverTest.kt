@@ -62,6 +62,21 @@ class QueryIdResolverTest {
     }
 
     @Test
+    fun testCreateRequestAppliesConfiguredTimeouts() {
+        val config = XWebConfig().apply {
+            requestTimeoutMillis = 101L
+            connectTimeoutMillis = 202L
+            socketTimeoutMillis = 303L
+        }
+
+        val request = QueryIdResolver.createRequest(config)
+
+        assertEquals(101L, request.requestTimeoutMillis)
+        assertEquals(202L, request.connectTimeoutMillis)
+        assertEquals(303L, request.socketTimeoutMillis)
+    }
+
+    @Test
     fun testWithQueryIdRetryUsesCachedIdFirst() = runTest {
         QueryIdResolver.setCachedIds(mapOf("SearchTimeline" to "cached-id"))
         val attemptedIds = mutableListOf<String>()
