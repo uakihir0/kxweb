@@ -2,9 +2,7 @@ package work.socialhub.kxweb.internal
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.jsonPrimitive
 import work.socialhub.kxweb.XWebConfig
 import work.socialhub.kxweb.api.AccountResource
 import work.socialhub.kxweb.domain.QueryId
@@ -12,6 +10,7 @@ import work.socialhub.kxweb.domain.Service
 import work.socialhub.kxweb.entity.account.GetCurrentUserResponse
 import work.socialhub.kxweb.entity.share.Response
 import work.socialhub.kxweb.internal.entity.GraphQLViewerRoot
+import work.socialhub.kxweb.internal.entity.RestAccountUser
 import work.socialhub.kxweb.internal.share.InternalUtility
 import work.socialhub.kxweb.internal.share.InternalUtility.fromJson
 import work.socialhub.kxweb.internal.share.InternalUtility.graphqlUrl
@@ -21,7 +20,6 @@ import work.socialhub.kxweb.internal.share.InternalUtility.trackResponse
 import work.socialhub.kxweb.internal.share.InternalUtility.withAuthHeaders
 import work.socialhub.kxweb.internal.share.InternalUtility.withPreparedCookieHeaders
 import work.socialhub.kxweb.internal.share.TweetParser
-import work.socialhub.kxweb.model.User
 import work.socialhub.kxweb.util.toBlocking
 
 class AccountResourceImpl(
@@ -54,16 +52,12 @@ class AccountResourceImpl(
                 val body = response.stringBody
 
                 if (response.status == 200) {
-                    val json = fromJson<JsonObject>(body)
+                    val user = fromJson<RestAccountUser>(body).toUser()
                     val result = GetCurrentUserResponse(
-                        screenName = json["screen_name"]?.jsonPrimitive?.content,
-                        userId = json["id_str"]?.jsonPrimitive?.content,
-                        name = json["name"]?.jsonPrimitive?.content,
-                    )
-                    result.user = User(
-                        id = result.userId,
-                        screenName = result.screenName,
-                        name = result.name,
+                        screenName = user.screenName,
+                        userId = user.id,
+                        name = user.name,
+                        user = user,
                     )
                     return Response(result, body)
                 }
