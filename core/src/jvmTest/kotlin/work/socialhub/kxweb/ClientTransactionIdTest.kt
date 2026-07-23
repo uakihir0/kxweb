@@ -7,6 +7,7 @@ import work.socialhub.khttpclient.HttpRequest
 import work.socialhub.kxweb.internal.share.ClientTransactionId
 import work.socialhub.kxweb.internal.share.InternalUtility.withCookieHeaders
 import work.socialhub.kxweb.internal.share.InternalUtility.withGuestHeaders
+import work.socialhub.kxweb.internal.share.InternalUtility.withPreparedCookieHeaders
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -142,6 +143,96 @@ class ClientTransactionIdTest {
             assertEquals("one-shot-id", first.header["x-client-transaction-id"])
             assertNull(config.clientTransactionId)
             assertNotEquals("one-shot-id", second.header["x-client-transaction-id"])
+        } finally {
+            ClientTransactionId.clearCache()
+        }
+    }
+
+    @Test
+    fun testCookieHeadersOmitGeneratedIdWithoutPairData() {
+        ClientTransactionId.clearCache()
+        val config = XWebConfig().apply {
+            enableClientTransaction = true
+        }
+
+        val request = HttpRequest().withCookieHeaders(
+            config = config,
+            method = "POST",
+            url = "https://upload.x.com/i/media/upload.json",
+        )
+
+        assertNull(request.header["x-client-transaction-id"])
+    }
+
+    @Test
+    fun testPreparedCookieHeadersGenerateIdWithPairData() = runTest {
+        ClientTransactionId.setPairData(
+            byteArrayOf(0x01, 0x02, 0x03, 0x04),
+            "test-animation-key",
+        )
+        val config = XWebConfig().apply {
+            enableClientTransaction = true
+        }
+
+        try {
+            val request = HttpRequest().withPreparedCookieHeaders(
+                config = config,
+                method = "POST",
+                url = "https://upload.x.com/i/media/upload.json",
+            )
+
+            assertTrue(request.header["x-client-transaction-id"].orEmpty().isNotBlank())
+        } finally {
+            ClientTransactionId.clearCache()
+        }
+    }
+
+    @Test
+    fun testRefreshPairDataReportsHttpFailureWithoutCache() = runTest {
+        ClientTransactionId.clearCache()
+
+        val exception = assertFailsWith<XWebException> {
+            ClientTransactionId.refreshPairData(
+                loadHome = {
+                    ClientTransactionId.TransactionResponse(
+                        status = 503,
+                        body = "service unavailable",
+                    )
+                },
+                loadOndemand = {
+                    error("ondemand loader should not be called")
+                },
+            )
+        }
+
+        assertEquals(503, exception.status)
+        assertEquals("service unavailable", exception.body)
+        assertTrue(exception.message.orEmpty().contains("X home page"))
+    }
+
+    @Test
+    fun testRefreshPairDataKeepsExpiredCachedPairOnFailure() = runTest {
+        ClientTransactionId.setPairData(
+            keyBytes = byteArrayOf(0x01, 0x02, 0x03, 0x04),
+            animationKey = "stale-animation-key",
+            cachedAt = 0L,
+        )
+
+        try {
+            ClientTransactionId.refreshPairData(
+                loadHome = {
+                    ClientTransactionId.TransactionResponse(
+                        status = 503,
+                        body = "service unavailable",
+                    )
+                },
+                loadOndemand = {
+                    error("ondemand loader should not be called")
+                },
+            )
+
+            assertTrue(ClientTransactionId.isPairDataAvailable())
+            assertTrue(ClientTransactionId.generate("POST", "/upload").isNotBlank())
         } finally {
             ClientTransactionId.clearCache()
         }
