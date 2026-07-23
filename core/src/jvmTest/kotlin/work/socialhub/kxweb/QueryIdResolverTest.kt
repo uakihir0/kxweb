@@ -1,8 +1,12 @@
 package work.socialhub.kxweb
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.test.runTest
+import work.socialhub.kxweb.internal.share.InternalUtility
 import work.socialhub.kxweb.internal.share.QueryIdResolver
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class QueryIdResolverTest {
@@ -55,5 +59,40 @@ class QueryIdResolverTest {
     fun testInvalidateCache() {
         QueryIdResolver.invalidateCache()
         // Should not throw
+    }
+
+    @Test
+    fun testWithQueryIdRetryUsesCachedIdFirst() = runTest {
+        QueryIdResolver.setCachedIds(mapOf("SearchTimeline" to "cached-id"))
+        val attemptedIds = mutableListOf<String>()
+
+        try {
+            val result = InternalUtility.withQueryIdRetry(
+                operationName = "SearchTimeline",
+                queryId = "fallback-id",
+            ) { queryId ->
+                attemptedIds.add(queryId)
+                "success"
+            }
+
+            assertEquals("success", result)
+            assertEquals(listOf("cached-id"), attemptedIds)
+        } finally {
+            QueryIdResolver.invalidateCache()
+        }
+    }
+
+    @Test
+    fun testResolvePreservesCancellation() = runTest {
+        QueryIdResolver.invalidateCache()
+
+        assertFailsWith<CancellationException> {
+            QueryIdResolver.resolveWithRefresh(
+                operationName = "SearchTimeline",
+                fallback = "fallback-id",
+            ) {
+                throw CancellationException("cancelled")
+            }
+        }
     }
 }

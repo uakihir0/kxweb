@@ -792,12 +792,17 @@ object InternalUtility {
         queryId: String,
         execute: suspend (resolvedQueryId: String) -> T,
     ): T {
+        val initialQueryId = QueryIdResolver.cachedId(operationName) ?: queryId
         return try {
-            execute(queryId)
+            execute(initialQueryId)
         } catch (e: XWebException) {
             if (e.status == 404) {
-                val newQueryId = QueryIdResolver.resolve(operationName, queryId)
-                if (newQueryId != queryId) {
+                val newQueryId = QueryIdResolver.resolve(
+                    operationName = operationName,
+                    fallback = initialQueryId,
+                    forceRefresh = true,
+                )
+                if (newQueryId != initialQueryId) {
                     execute(newQueryId)
                 } else {
                     throw e

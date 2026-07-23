@@ -1,5 +1,6 @@
 package work.socialhub.kxweb.internal.share
 
+import kotlinx.coroutines.CancellationException
 import work.socialhub.khttpclient.HttpRequest
 import work.socialhub.kxweb.internal.share.InternalUtility.USER_AGENT
 import kotlin.concurrent.Volatile
@@ -11,15 +12,38 @@ object QueryIdResolver {
     private var fetchCount: Int = 0
     private const val MAX_USES_BEFORE_REFRESH = 1000
 
-    suspend fun resolve(operationName: String, fallback: String): String {
+    internal fun cachedId(operationName: String): String? {
         val cached = cachedIds?.get(operationName)
         if (cached != null && fetchCount < MAX_USES_BEFORE_REFRESH) {
             fetchCount++
             return cached
         }
+        return null
+    }
+
+    suspend fun resolve(
+        operationName: String,
+        fallback: String,
+        forceRefresh: Boolean = false,
+    ): String = resolveWithRefresh(operationName, fallback, forceRefresh) {
+        refreshFromBundles()
+    }
+
+    internal suspend fun resolveWithRefresh(
+        operationName: String,
+        fallback: String,
+        forceRefresh: Boolean = false,
+        refresh: suspend () -> Unit,
+    ): String {
+        if (!forceRefresh) {
+            cachedId(operationName)?.let { return it }
+        }
+
         return try {
-            refreshFromBundles()
-            cachedIds?.get(operationName) ?: fallback
+            refresh()
+            cachedId(operationName) ?: fallback
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {
             fallback
         }
@@ -40,6 +64,8 @@ object QueryIdResolver {
                 val jsContent = fetchPage(scriptUrl)
                 val extracted = extractQueryIds(jsContent)
                 ids.putAll(extracted)
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {
                 // skip failed bundle
             }
@@ -75,5 +101,10 @@ object QueryIdResolver {
             result[operationName] = queryId
         }
         return result
+    }
+
+    internal fun setCachedIds(ids: Map<String, String>) {
+        cachedIds = ids
+        fetchCount = 0
     }
 }
