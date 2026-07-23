@@ -741,9 +741,13 @@ object InternalUtility {
         endpoint: String = "",
         requireClientTransaction: Boolean = false,
     ): HttpRequest {
-        if (requireClientTransaction &&
+        // Resolve session from pool if configured
+        config.resolveSession(endpoint)
+
+        if ((requireClientTransaction || config.enableClientTransaction) &&
             !isOAuth(config) &&
-            config.clientTransactionId.isNullOrBlank()
+            config.clientTransactionId.isNullOrBlank() &&
+            config.clientTransactionIdProvider == null
         ) {
             ClientTransactionId.refreshPairData(config)
         }

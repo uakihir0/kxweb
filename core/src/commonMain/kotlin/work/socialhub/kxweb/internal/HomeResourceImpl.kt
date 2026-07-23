@@ -49,6 +49,7 @@ class HomeResourceImpl(
         queryId: String,
         operationName: String,
     ): Response<HomeTimelineResponse> {
+        config.resolveSession(operationName)
         val url = graphqlUrl(config, queryId, operationName)
 
         val variables = buildJsonObject {
@@ -76,6 +77,7 @@ class HomeResourceImpl(
                 "GET",
                 url,
                 queryParams,
+                endpoint = operationName,
                 requireClientTransaction = true,
             )
 

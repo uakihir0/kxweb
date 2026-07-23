@@ -31,12 +31,15 @@ class SearchResourceImpl(
 
     override suspend fun searchTweets(
         request: SearchSearchRequest
-    ): Response<SearchSearchResponse> = withQueryIdRetry(
-        operationName = "SearchTimeline",
-        queryId = QueryId.SEARCH_TIMELINE,
-        config = config,
-    ) { resolvedQueryId ->
-        searchTweets(request, resolvedQueryId)
+    ): Response<SearchSearchResponse> {
+        config.resolveSession("SearchTimeline")
+        return withQueryIdRetry(
+            operationName = "SearchTimeline",
+            queryId = QueryId.SEARCH_TIMELINE,
+            config = config,
+        ) { resolvedQueryId ->
+            searchTweets(request, resolvedQueryId)
+        }
     }
 
     private suspend fun searchTweets(
@@ -73,6 +76,7 @@ class SearchResourceImpl(
                 "GET",
                 url,
                 queryParams,
+                endpoint = "SearchTimeline",
                 requireClientTransaction = true,
             )
 
@@ -152,6 +156,7 @@ class SearchResourceImpl(
                 "GET",
                 url,
                 queryParams,
+                endpoint = "SearchTimeline",
                 requireClientTransaction = true,
             )
 
