@@ -1,6 +1,8 @@
 package work.socialhub.kxweb.internal.share
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import work.socialhub.khttpclient.HttpRequest
 import work.socialhub.kxweb.XWebConfig
 import work.socialhub.kxweb.internal.share.InternalUtility.USER_AGENT
@@ -10,9 +12,13 @@ import kotlin.concurrent.Volatile
 
 object QueryIdResolver {
 
+    @Volatile
     private var cachedIds: Map<String, String>? = null
     @Volatile
     private var fetchCount: Int = 0
+    @Volatile
+    private var refreshGeneration: Long = 0L
+    private val refreshMutex = Mutex()
     private const val MAX_USES_BEFORE_REFRESH = 1000
 
     internal fun cachedId(operationName: String): String? {
@@ -39,23 +45,41 @@ object QueryIdResolver {
         forceRefresh: Boolean = false,
         refresh: suspend () -> Unit,
     ): String {
+        val observedGeneration = refreshGeneration
         if (!forceRefresh) {
             cachedId(operationName)?.let { return it }
         }
 
-        return try {
-            refresh()
-            cachedId(operationName) ?: fallback
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            fallback
+        return refreshMutex.withLock {
+            if (!forceRefresh) {
+                cachedId(operationName)?.let { return@withLock it }
+            } else {
+                cachedId(operationName)
+                    ?.takeIf { it != fallback }
+                    ?.let { return@withLock it }
+                if (refreshGeneration != observedGeneration) {
+                    return@withLock cachedId(operationName) ?: fallback
+                }
+            }
+
+            try {
+                refresh()
+                val resolved = cachedId(operationName) ?: fallback
+                refreshGeneration++
+                resolved
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                refreshGeneration++
+                fallback
+            }
         }
     }
 
     fun invalidateCache() {
         cachedIds = null
         fetchCount = 0
+        refreshGeneration++
     }
 
     private suspend fun refreshFromBundles(config: XWebConfig?) {
@@ -118,5 +142,6 @@ object QueryIdResolver {
     internal fun setCachedIds(ids: Map<String, String>) {
         cachedIds = ids
         fetchCount = 0
+        refreshGeneration++
     }
 }
