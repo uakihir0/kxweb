@@ -18,7 +18,7 @@ import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
 import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
 import work.socialhub.kxweb.internal.share.InternalUtility.withAuthHeaders
 import work.socialhub.kxweb.internal.share.InternalUtility.trackResponse
-import work.socialhub.kxweb.internal.share.InternalUtility.withCookieHeaders
+import work.socialhub.kxweb.internal.share.InternalUtility.withPreparedCookieHeaders
 import work.socialhub.kxweb.model.MutationResult
 import work.socialhub.kxweb.util.toBlocking
 
@@ -95,7 +95,7 @@ class FollowResourceImpl(
             .url(url)
             .setTimeouts(config)
             .header("content-type", "application/x-www-form-urlencoded")
-            .withCookieHeaders(config)
+            .withPreparedCookieHeaders(config, "POST", url)
 
         userId?.let {
             httpRequest.param("user_id", it)

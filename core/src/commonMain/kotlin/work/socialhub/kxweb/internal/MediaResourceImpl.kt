@@ -14,7 +14,7 @@ import work.socialhub.kxweb.internal.share.InternalUtility.fromJson
 import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
 import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
 import work.socialhub.kxweb.internal.share.InternalUtility.trackResponse
-import work.socialhub.kxweb.internal.share.InternalUtility.withCookieHeaders
+import work.socialhub.kxweb.internal.share.InternalUtility.withPreparedCookieHeaders
 import work.socialhub.kxweb.model.UploadMediaResult
 import work.socialhub.kxweb.util.toBlocking
 import kotlin.math.min
@@ -80,7 +80,7 @@ class MediaResourceImpl(
             .param("command", "INIT")
             .param("total_bytes", totalBytes.toString())
             .param("media_type", mimeType)
-            .withCookieHeaders(config)
+            .withPreparedCookieHeaders(config, "POST", UPLOAD_URL)
 
         val response = httpRequest.post()
         trackResponse(config, "MediaUpload", response)
@@ -100,7 +100,7 @@ class MediaResourceImpl(
             .param("media_id", mediaId)
             .param("segment_index", segmentIndex.toString())
             .file("media_data", "blob", chunk)
-            .withCookieHeaders(config)
+            .withPreparedCookieHeaders(config, "POST", UPLOAD_URL)
 
         val response = httpRequest.post()
         trackResponse(config, "MediaUpload", response)
@@ -116,7 +116,7 @@ class MediaResourceImpl(
             .setTimeouts(config)
             .param("command", "FINALIZE")
             .param("media_id", mediaId)
-            .withCookieHeaders(config)
+            .withPreparedCookieHeaders(config, "POST", UPLOAD_URL)
 
         val response = httpRequest.post()
         trackResponse(config, "MediaUpload", response)
@@ -132,11 +132,11 @@ class MediaResourceImpl(
         val body = """{"media_id":"$mediaId","alt_text":{"text":"$altText"}}"""
 
         val httpRequest = httpRequest(config)
-            .url("https://upload.x.com/i/media/upload.json")
+            .url(UPLOAD_URL)
             .setTimeouts(config)
             .header("content-type", "application/json")
             .json(body)
-            .withCookieHeaders(config)
+            .withPreparedCookieHeaders(config, "POST", UPLOAD_URL)
 
         httpRequest.post()
     }
