@@ -95,4 +95,24 @@ class QueryIdResolverTest {
             }
         }
     }
+
+    @Test
+    fun testWithQueryIdRetryCanSkipRefreshOnNotFound() = runTest {
+        QueryIdResolver.invalidateCache()
+        val attemptedIds = mutableListOf<String>()
+
+        val exception = assertFailsWith<XWebException> {
+            InternalUtility.withQueryIdRetry(
+                operationName = "SearchTimeline",
+                queryId = "fallback-id",
+                refreshOnNotFound = false,
+            ) { queryId ->
+                attemptedIds.add(queryId)
+                throw XWebException("not found", null, status = 404)
+            }
+        }
+
+        assertEquals(404, exception.status)
+        assertEquals(listOf("fallback-id"), attemptedIds)
+    }
 }
