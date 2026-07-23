@@ -38,12 +38,16 @@ object ClientTransactionId {
     private const val TIME_EPOCH_OFFSET_SECONDS = 1_682_924_400L
     private const val ADDITIONAL_RANDOM_NUMBER = 3
     private const val CACHE_DURATION_SECONDS = 3600L
+    private const val REFRESH_RETRY_DELAY_SECONDS = 60L
 
     @Volatile
     private var cachedPair: TransactionPair? = null
 
     @Volatile
     private var cacheTimestamp: Long = 0L
+
+    @Volatile
+    private var refreshRetryAfter: Long = 0L
 
     private val refreshMutex = Mutex()
 
@@ -112,15 +116,13 @@ object ClientTransactionId {
         loadOndemand: suspend (String) -> TransactionResponse,
     ) {
         val now = Clock.System.now().epochSeconds
-        if (cachedPair != null && (now - cacheTimestamp) < CACHE_DURATION_SECONDS) {
+        if (shouldUseCachedPair(now)) {
             return
         }
 
         refreshMutex.withLock {
             val refreshedAt = Clock.System.now().epochSeconds
-            if (cachedPair != null &&
-                (refreshedAt - cacheTimestamp) < CACHE_DURATION_SECONDS
-            ) {
+            if (shouldUseCachedPair(refreshedAt)) {
                 return@withLock
             }
 
@@ -187,6 +189,7 @@ object ClientTransactionId {
                 )
                 cachedPair = TransactionPair(keyBytes, animationKey)
                 cacheTimestamp = refreshedAt
+                refreshRetryAfter = 0L
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -197,8 +200,16 @@ object ClientTransactionId {
                         exception = e,
                     )
                 }
+                refreshRetryAfter =
+                    Clock.System.now().epochSeconds + REFRESH_RETRY_DELAY_SECONDS
             }
         }
+    }
+
+    private fun shouldUseCachedPair(now: Long): Boolean {
+        return cachedPair != null &&
+                ((now - cacheTimestamp) < CACHE_DURATION_SECONDS ||
+                        now < refreshRetryAfter)
     }
 
     fun isPairDataAvailable(): Boolean = cachedPair != null
@@ -206,6 +217,7 @@ object ClientTransactionId {
     internal fun clearCache() {
         cachedPair = null
         cacheTimestamp = 0L
+        refreshRetryAfter = 0L
     }
 
     internal fun setPairData(
@@ -215,6 +227,7 @@ object ClientTransactionId {
     ) {
         cachedPair = TransactionPair(keyBytes, animationKey)
         cacheTimestamp = cachedAt
+        refreshRetryAfter = 0L
     }
 
     internal fun createRequest(config: XWebConfig?): HttpRequest {
