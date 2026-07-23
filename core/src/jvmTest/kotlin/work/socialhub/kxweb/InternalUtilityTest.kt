@@ -1,10 +1,13 @@
 package work.socialhub.kxweb
 
+import work.socialhub.khttpclient.HttpRequest
 import work.socialhub.kxweb.internal.share.InternalUtility
 import work.socialhub.kxweb.internal.share.ClientTransactionId
+import work.socialhub.kxweb.internal.share.InternalUtility.withClientTransaction
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class InternalUtilityTest {
@@ -29,6 +32,43 @@ class InternalUtilityTest {
         } finally {
             ClientTransactionId.clearCache()
         }
+    }
+
+    @Test
+    fun testWithClientTransactionOmitsGeneratedIdWithoutPairData() {
+        ClientTransactionId.clearCache()
+        val config = XWebConfig().apply {
+            enableClientTransaction = true
+        }
+
+        val request = HttpRequest().withClientTransaction(config)
+
+        assertNull(request.header["x-client-transaction-id"])
+    }
+
+    @Test
+    fun testWithClientTransactionUsesExplicitId() {
+        ClientTransactionId.clearCache()
+        val config = XWebConfig().apply {
+            clientTransactionId = "explicit-id"
+        }
+
+        val request = HttpRequest().withClientTransaction(config)
+
+        assertEquals("explicit-id", request.header["x-client-transaction-id"])
+        assertNull(config.clientTransactionId)
+    }
+
+    @Test
+    fun testWithClientTransactionUsesProvider() {
+        ClientTransactionId.clearCache()
+        val config = XWebConfig().apply {
+            clientTransactionIdProvider = { method, path -> "$method:$path" }
+        }
+
+        val request = HttpRequest().withClientTransaction(config)
+
+        assertEquals("GET:", request.header["x-client-transaction-id"])
     }
 
     @Test
