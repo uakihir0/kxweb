@@ -3,6 +3,9 @@ package work.socialhub.kxweb.internal.share
 import kotlinx.serialization.json.Json
 import work.socialhub.kxweb.XWebConfig
 import work.socialhub.kxweb.XWebException
+import work.socialhub.kxweb.XWebRequestContext
+import work.socialhub.kxweb.XWebSession
+import work.socialhub.kxweb.XWebSessionPool
 import work.socialhub.kxweb.domain.Service
 import work.socialhub.kxweb.entity.share.RateLimit
 import work.socialhub.kxweb.entity.share.Response
@@ -104,9 +107,33 @@ object InternalUtility {
      * @param response The HTTP response to extract rate limit headers from.
      */
     fun trackResponse(config: XWebConfig, endpoint: String, response: HttpResponse) {
-        val pool = config.sessionPool ?: return
-        val session = config.currentSession ?: return
+        trackResponse(
+            pool = config.sessionPool ?: return,
+            session = config.currentSession ?: return,
+            endpoint = endpoint,
+            response = response,
+        )
+    }
 
+    internal fun trackResponse(
+        context: XWebRequestContext,
+        endpoint: String,
+        response: HttpResponse,
+    ) {
+        trackResponse(
+            pool = context.pool ?: return,
+            session = context.session ?: return,
+            endpoint = endpoint,
+            response = response,
+        )
+    }
+
+    private fun trackResponse(
+        pool: XWebSessionPool,
+        session: XWebSession,
+        endpoint: String,
+        response: HttpResponse,
+    ) {
         // Parse and update rate limit from headers
         val rateLimit = RateLimit.fromHeaders(response.headers)
         if (rateLimit != null) {
@@ -195,6 +222,21 @@ object InternalUtility {
         method: String = "GET",
         url: String = "",
         requireClientTransaction: Boolean = false,
+    ): HttpRequest {
+        val path = transactionPath(url)
+        val clientTransactionId = configuredClientTransactionId(config, method, path)
+        return withCookieAuthHeaders(config)
+            .withResolvedClientTransactionHeader(
+                config,
+                method,
+                path,
+                requireClientTransaction,
+                clientTransactionId,
+            )
+    }
+
+    private fun HttpRequest.withCookieAuthHeaders(
+        config: XWebConfig,
     ): HttpRequest = also {
         it.header("authorization", "Bearer $BEARER_TOKEN")
         it.header("user-agent", USER_AGENT)
@@ -218,14 +260,6 @@ object InternalUtility {
             if (authToken != null && csrfToken != null) {
                 it.header("cookie", "auth_token=$authToken; ct0=$csrfToken")
             }
-        }
-
-        val path = transactionPath(url)
-        val clientTransactionId = configuredClientTransactionId(config, method, path)
-        if (clientTransactionId != null) {
-            it.header("x-client-transaction-id", clientTransactionId)
-        } else if (config.enableClientTransaction || requireClientTransaction) {
-            it.header("x-client-transaction-id", generateClientTransactionId(method, path))
         }
     }
 
@@ -293,6 +327,21 @@ object InternalUtility {
         method: String = "GET",
         url: String = "",
         requireClientTransaction: Boolean = false,
+    ): HttpRequest {
+        val path = transactionPath(url)
+        val clientTransactionId = configuredClientTransactionId(config, method, path)
+        return withGuestAuthHeaders(guestToken)
+            .withResolvedClientTransactionHeader(
+                config,
+                method,
+                path,
+                requireClientTransaction,
+                clientTransactionId,
+            )
+    }
+
+    private fun HttpRequest.withGuestAuthHeaders(
+        guestToken: String,
     ): HttpRequest = also {
         it.header("authorization", "Bearer $BEARER_TOKEN")
         it.header("user-agent", USER_AGENT)
@@ -302,9 +351,15 @@ object InternalUtility {
         it.header("accept", "*/*")
         it.header("origin", "https://x.com")
         it.header("referer", "https://x.com/")
+    }
 
-        val path = transactionPath(url)
-        val clientTransactionId = configuredClientTransactionId(config, method, path)
+    private fun HttpRequest.withResolvedClientTransactionHeader(
+        config: XWebConfig,
+        method: String,
+        path: String,
+        requireClientTransaction: Boolean,
+        clientTransactionId: String?,
+    ): HttpRequest = also {
         if (clientTransactionId != null) {
             it.header("x-client-transaction-id", clientTransactionId)
         } else if (config.enableClientTransaction || requireClientTransaction) {
@@ -317,10 +372,7 @@ object InternalUtility {
         method: String,
         path: String,
     ): String? {
-        config.clientTransactionId
-            ?.takeIf { it.isNotBlank() }
-            ?.also { config.clientTransactionId = null }
-            ?.let { return it }
+        config.consumeClientTransactionId()?.let { return it }
 
         return config.clientTransactionIdProvider
             ?.invoke(method, path)
@@ -744,25 +796,30 @@ object InternalUtility {
         // Resolve session from pool if configured
         config.resolveSession(endpoint)
 
-        if ((requireClientTransaction || config.enableClientTransaction) &&
-            !isOAuth(config) &&
-            config.clientTransactionId.isNullOrBlank() &&
-            config.clientTransactionIdProvider == null
+        if (isOAuth(config)) {
+            return withOAuthHeaders(config, method, url, queryParams)
+        }
+
+        val path = transactionPath(url)
+        val clientTransactionId = configuredClientTransactionId(config, method, path)
+        if (clientTransactionId == null &&
+            (requireClientTransaction || config.enableClientTransaction)
         ) {
             ClientTransactionId.refreshPairData(config)
         }
 
-        return when {
-            isOAuth(config) -> withOAuthHeaders(config, method, url, queryParams)
-            isGuest(config) -> withGuestHeaders(
-                config = config,
-                guestToken = GuestTokenProvider.token(config),
-                method = method,
-                url = url,
-                requireClientTransaction = requireClientTransaction,
-            )
-            else -> withCookieHeaders(config, method, url, requireClientTransaction)
+        val request = if (isGuest(config)) {
+            withGuestAuthHeaders(GuestTokenProvider.token(config))
+        } else {
+            withCookieAuthHeaders(config)
         }
+        return request.withResolvedClientTransactionHeader(
+            config,
+            method,
+            path,
+            requireClientTransaction,
+            clientTransactionId,
+        )
     }
 
     /**
@@ -843,8 +900,7 @@ object InternalUtility {
 
     /**
      * Generate a client transaction ID.
-     * Uses the Nitter-style crypto algorithm when pair data is available,
-     * falls back to a simple random string otherwise.
+     * Requires current transaction pair data and throws when it is unavailable.
      *
      * @param method HTTP method for the request.
      * @param path URL path for the request.
