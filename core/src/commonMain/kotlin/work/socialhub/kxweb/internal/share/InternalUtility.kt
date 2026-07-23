@@ -289,12 +289,15 @@ object InternalUtility {
      * @param guestToken The guest token to send as x-guest-token.
      * @param method HTTP method (used for client transaction ID generation).
      * @param url Full request URL (used for client transaction ID generation).
+     * @param requireClientTransaction Generate a transaction ID even when the
+     * feature is not enabled globally.
      */
     fun HttpRequest.withGuestHeaders(
         config: XWebConfig,
         guestToken: String,
         method: String = "GET",
         url: String = "",
+        requireClientTransaction: Boolean = false,
     ): HttpRequest = also {
         it.header("authorization", "Bearer $BEARER_TOKEN")
         it.header("user-agent", USER_AGENT)
@@ -308,7 +311,7 @@ object InternalUtility {
         val clientTransactionId = config.clientTransactionId
         if (!clientTransactionId.isNullOrBlank()) {
             it.header("x-client-transaction-id", clientTransactionId)
-        } else if (config.enableClientTransaction) {
+        } else if (config.enableClientTransaction || requireClientTransaction) {
             val path = try {
                 val afterScheme = url.substringAfter("://")
                 val pathStart = afterScheme.indexOf('/')
@@ -727,7 +730,6 @@ object InternalUtility {
 
         if (requireClientTransaction &&
             !isOAuth(config) &&
-            !isGuest(config) &&
             config.clientTransactionId.isNullOrBlank()
         ) {
             ClientTransactionId.refreshPairData(config)
@@ -735,7 +737,13 @@ object InternalUtility {
 
         return when {
             isOAuth(config) -> withOAuthHeaders(config, method, url, queryParams)
-            isGuest(config) -> withGuestHeaders(config, GuestTokenProvider.token(config), method, url)
+            isGuest(config) -> withGuestHeaders(
+                config = config,
+                guestToken = GuestTokenProvider.token(config),
+                method = method,
+                url = url,
+                requireClientTransaction = requireClientTransaction,
+            )
             else -> withCookieHeaders(config, method, url, requireClientTransaction)
         }
     }
