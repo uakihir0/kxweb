@@ -2,29 +2,24 @@ package work.socialhub.kxweb
 
 import work.socialhub.khttpclient.HttpRequest
 import work.socialhub.kxweb.internal.share.ClientTransactionId
+import work.socialhub.kxweb.internal.share.InternalUtility.withCookieHeaders
 import work.socialhub.kxweb.internal.share.InternalUtility.withGuestHeaders
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ClientTransactionIdTest {
 
     @Test
-    fun testGenerateSimpleFallback() {
-        // Without pair data, should generate simple random ID
+    fun testGenerateFailsWithoutPairData() {
         ClientTransactionId.clearCache()
-        val id = ClientTransactionId.generate()
-        assertEquals(20, id.length)
-        assertTrue(id.all { it.isLetterOrDigit() })
-    }
-
-    @Test
-    fun testGenerateSimpleFallbackUnique() {
-        ClientTransactionId.clearCache()
-        val ids = (1..100).map { ClientTransactionId.generate() }.toSet()
-        assertTrue(ids.size > 90, "Simple fallback IDs should be mostly unique")
+        assertFailsWith<IllegalStateException> {
+            ClientTransactionId.generate()
+        }
     }
 
     @Test
@@ -116,5 +111,61 @@ class ClientTransactionIdTest {
         } finally {
             ClientTransactionId.clearCache()
         }
+    }
+
+    @Test
+    fun testExplicitTransactionIdIsConsumedOnce() {
+        ClientTransactionId.setPairData(
+            byteArrayOf(0x01, 0x02, 0x03, 0x04),
+            "test-animation-key",
+        )
+        val config = XWebConfig().apply {
+            clientTransactionId = "one-shot-id"
+            enableClientTransaction = true
+        }
+
+        try {
+            val first = HttpRequest().withCookieHeaders(
+                config = config,
+                method = "GET",
+                url = "https://x.com/i/api/graphql/abc/SearchTimeline",
+            )
+            val second = HttpRequest().withCookieHeaders(
+                config = config,
+                method = "GET",
+                url = "https://x.com/i/api/graphql/def/HomeTimeline",
+            )
+
+            assertEquals("one-shot-id", first.header["x-client-transaction-id"])
+            assertNull(config.clientTransactionId)
+            assertNotEquals("one-shot-id", second.header["x-client-transaction-id"])
+        } finally {
+            ClientTransactionId.clearCache()
+        }
+    }
+
+    @Test
+    fun testTransactionIdProviderReceivesRequestData() {
+        val config = XWebConfig()
+        val calls = mutableListOf<Pair<String, String>>()
+        config.clientTransactionIdProvider = { method, path ->
+            calls.add(method to path)
+            "$method:$path"
+        }
+
+        val request = HttpRequest().withCookieHeaders(
+            config = config,
+            method = "POST",
+            url = "https://x.com/i/api/graphql/abc/CreateTweet?ignored=true",
+        )
+
+        assertEquals(
+            "POST:/i/api/graphql/abc/CreateTweet",
+            request.header["x-client-transaction-id"],
+        )
+        assertEquals(
+            listOf("POST" to "/i/api/graphql/abc/CreateTweet"),
+            calls,
+        )
     }
 }

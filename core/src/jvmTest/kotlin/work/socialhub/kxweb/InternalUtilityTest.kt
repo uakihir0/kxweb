@@ -1,23 +1,34 @@
 package work.socialhub.kxweb
 
 import work.socialhub.kxweb.internal.share.InternalUtility
+import work.socialhub.kxweb.internal.share.ClientTransactionId
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class InternalUtilityTest {
 
     @Test
     fun testGenerateClientTransactionId() {
-        val id = InternalUtility.generateClientTransactionId()
-        assertEquals(20, id.length)
-        assertTrue(id.all { it.isLetterOrDigit() })
+        ClientTransactionId.setPairData(byteArrayOf(1, 2, 3, 4), "animation")
+        try {
+            assertTrue(InternalUtility.generateClientTransactionId().isNotBlank())
+        } finally {
+            ClientTransactionId.clearCache()
+        }
     }
 
     @Test
     fun testGenerateClientTransactionIdUnique() {
-        val ids = (1..100).map { InternalUtility.generateClientTransactionId() }.toSet()
-        assertTrue(ids.size > 90, "Transaction IDs should be mostly unique")
+        ClientTransactionId.setPairData(byteArrayOf(1, 2, 3, 4), "animation")
+        try {
+            val first = InternalUtility.generateClientTransactionId()
+            val second = InternalUtility.generateClientTransactionId()
+            assertNotEquals(first, second)
+        } finally {
+            ClientTransactionId.clearCache()
+        }
     }
 
     @Test

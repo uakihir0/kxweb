@@ -1,7 +1,10 @@
 package work.socialhub.kxweb
 
+import kotlinx.coroutines.test.runTest
+import work.socialhub.khttpclient.HttpRequest
 import work.socialhub.kxweb.entity.share.RateLimit
 import work.socialhub.kxweb.internal.share.InternalUtility
+import work.socialhub.kxweb.internal.share.InternalUtility.withAuthHeaders
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -196,6 +199,37 @@ class XWebSessionPoolTest {
         config.resolveSession("SearchTimeline")
 
         assertFalse(InternalUtility.isGuest(config))
+    }
+
+    @Test
+    fun testEndpointSelectionIsPreservedWhenApplyingHeaders() = runTest {
+        val first = XWebSession.cookie("auth1", "csrf1")
+        val second = XWebSession.cookie("auth2", "csrf2")
+        val pool = XWebSessionPool(listOf(first, second))
+        pool.updateRateLimit(
+            first,
+            "SearchTimeline",
+            RateLimit(
+                limit = 100,
+                remaining = 0,
+                resetEpochSeconds = kotlin.time.Clock.System.now().epochSeconds + 300,
+            ),
+        )
+        val config = XWebConfig().apply {
+            sessionPool = pool
+        }
+
+        config.resolveSession("SearchTimeline")
+        assertEquals(second, config.currentSession)
+
+        HttpRequest().withAuthHeaders(
+            config = config,
+            method = "GET",
+            url = "https://x.com/i/api/graphql/id/SearchTimeline",
+            endpoint = "SearchTimeline",
+        )
+
+        assertEquals(second, config.currentSession)
     }
 
     @Test
