@@ -224,12 +224,7 @@ object InternalUtility {
         if (!clientTransactionId.isNullOrBlank()) {
             it.header("x-client-transaction-id", clientTransactionId)
         } else if (config.enableClientTransaction || requireClientTransaction) {
-            // Extract path from URL for transaction ID generation
-            val path = try {
-                val afterScheme = url.substringAfter("://")
-                val pathStart = afterScheme.indexOf('/')
-                if (pathStart >= 0) afterScheme.substring(pathStart).substringBefore('?') else ""
-            } catch (_: Exception) { "" }
+            val path = transactionPath(url)
             it.header("x-client-transaction-id", generateClientTransactionId(method, path))
         }
     }
@@ -312,12 +307,18 @@ object InternalUtility {
         if (!clientTransactionId.isNullOrBlank()) {
             it.header("x-client-transaction-id", clientTransactionId)
         } else if (config.enableClientTransaction || requireClientTransaction) {
-            val path = try {
-                val afterScheme = url.substringAfter("://")
-                val pathStart = afterScheme.indexOf('/')
-                if (pathStart >= 0) afterScheme.substring(pathStart).substringBefore('?') else ""
-            } catch (_: Exception) { "" }
+            val path = transactionPath(url)
             it.header("x-client-transaction-id", generateClientTransactionId(method, path))
+        }
+    }
+
+    private fun transactionPath(url: String): String {
+        val afterScheme = url.substringAfter("://")
+        val pathStart = afterScheme.indexOf('/')
+        return if (pathStart >= 0) {
+            afterScheme.substring(pathStart).substringBefore('?')
+        } else {
+            ""
         }
     }
 
@@ -725,9 +726,6 @@ object InternalUtility {
         endpoint: String = "",
         requireClientTransaction: Boolean = false,
     ): HttpRequest {
-        // Resolve session from pool if configured
-        config.resolveSession(endpoint)
-
         if (requireClientTransaction &&
             !isOAuth(config) &&
             config.clientTransactionId.isNullOrBlank()
