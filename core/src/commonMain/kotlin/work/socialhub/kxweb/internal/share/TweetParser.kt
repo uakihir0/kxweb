@@ -120,8 +120,10 @@ object TweetParser {
                     ?.result
                     ?: continue
 
-                val legacy = tweetResult.legacy ?: continue
-                tweets.add(parseTweetResult(tweetResult))
+                val tweet = parseTweetResult(tweetResult)
+                if (tweet.id != null) {
+                    tweets.add(tweet)
+                }
             }
         }
 

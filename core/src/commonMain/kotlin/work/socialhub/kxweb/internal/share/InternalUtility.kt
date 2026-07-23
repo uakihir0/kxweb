@@ -3,6 +3,9 @@ package work.socialhub.kxweb.internal.share
 import kotlinx.serialization.json.Json
 import work.socialhub.kxweb.XWebConfig
 import work.socialhub.kxweb.XWebException
+import work.socialhub.kxweb.XWebRequestContext
+import work.socialhub.kxweb.XWebSession
+import work.socialhub.kxweb.XWebSessionPool
 import work.socialhub.kxweb.domain.Service
 import work.socialhub.kxweb.entity.share.RateLimit
 import work.socialhub.kxweb.entity.share.Response
@@ -30,7 +33,7 @@ object InternalUtility {
 
     const val USER_AGENT =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
 
     val json = Json {
         explicitNulls = false
@@ -82,7 +85,10 @@ object InternalUtility {
         }
 
         return XWebException(
-            message = body ?: exception?.message ?: "Unknown error",
+            message = body?.takeIf { it.isNotBlank() }
+                ?: status?.let { "HTTP $it" }
+                ?: exception?.message
+                ?: "Unknown error",
             exception = exception,
             status = status,
             body = body,
@@ -101,9 +107,33 @@ object InternalUtility {
      * @param response The HTTP response to extract rate limit headers from.
      */
     fun trackResponse(config: XWebConfig, endpoint: String, response: HttpResponse) {
-        val pool = config.sessionPool ?: return
-        val session = config.currentSession ?: return
+        trackResponse(
+            pool = config.sessionPool ?: return,
+            session = config.currentSession ?: return,
+            endpoint = endpoint,
+            response = response,
+        )
+    }
 
+    internal fun trackResponse(
+        context: XWebRequestContext,
+        endpoint: String,
+        response: HttpResponse,
+    ) {
+        trackResponse(
+            pool = context.pool ?: return,
+            session = context.session ?: return,
+            endpoint = endpoint,
+            response = response,
+        )
+    }
+
+    private fun trackResponse(
+        pool: XWebSessionPool,
+        session: XWebSession,
+        endpoint: String,
+        response: HttpResponse,
+    ) {
         // Parse and update rate limit from headers
         val rateLimit = RateLimit.fromHeaders(response.headers)
         if (rateLimit != null) {
@@ -191,6 +221,49 @@ object InternalUtility {
         config: XWebConfig,
         method: String = "GET",
         url: String = "",
+        requireClientTransaction: Boolean = false,
+    ): HttpRequest {
+        val path = transactionPath(url)
+        val clientTransactionId = configuredClientTransactionId(config, method, path)
+        return withCookieAuthHeaders(config)
+            .withResolvedClientTransactionHeader(
+                config,
+                method,
+                path,
+                requireClientTransaction,
+                clientTransactionId,
+            )
+    }
+
+    /**
+     * Apply cookie-based authentication headers after preparing transaction
+     * data when generated client transaction IDs are enabled.
+     */
+    suspend fun HttpRequest.withPreparedCookieHeaders(
+        config: XWebConfig,
+        method: String = "GET",
+        url: String = "",
+        requireClientTransaction: Boolean = false,
+    ): HttpRequest {
+        val path = transactionPath(url)
+        val clientTransactionId = prepareClientTransactionId(
+            config,
+            method,
+            path,
+            requireClientTransaction,
+        )
+        return withCookieAuthHeaders(config)
+            .withResolvedClientTransactionHeader(
+                config,
+                method,
+                path,
+                requireClientTransaction,
+                clientTransactionId,
+            )
+    }
+
+    private fun HttpRequest.withCookieAuthHeaders(
+        config: XWebConfig,
     ): HttpRequest = also {
         it.header("authorization", "Bearer $BEARER_TOKEN")
         it.header("user-agent", USER_AGENT)
@@ -214,16 +287,6 @@ object InternalUtility {
             if (authToken != null && csrfToken != null) {
                 it.header("cookie", "auth_token=$authToken; ct0=$csrfToken")
             }
-        }
-
-        if (config.enableClientTransaction) {
-            // Extract path from URL for transaction ID generation
-            val path = try {
-                val afterScheme = url.substringAfter("://")
-                val pathStart = afterScheme.indexOf('/')
-                if (pathStart >= 0) afterScheme.substring(pathStart).substringBefore('?') else ""
-            } catch (_: Exception) { "" }
-            it.header("x-client-transaction-id", generateClientTransactionId(method, path))
         }
     }
 
@@ -282,12 +345,30 @@ object InternalUtility {
      * @param guestToken The guest token to send as x-guest-token.
      * @param method HTTP method (used for client transaction ID generation).
      * @param url Full request URL (used for client transaction ID generation).
+     * @param requireClientTransaction Generate a transaction ID even when the
+     * feature is not enabled globally.
      */
     fun HttpRequest.withGuestHeaders(
         config: XWebConfig,
         guestToken: String,
         method: String = "GET",
         url: String = "",
+        requireClientTransaction: Boolean = false,
+    ): HttpRequest {
+        val path = transactionPath(url)
+        val clientTransactionId = configuredClientTransactionId(config, method, path)
+        return withGuestAuthHeaders(guestToken)
+            .withResolvedClientTransactionHeader(
+                config,
+                method,
+                path,
+                requireClientTransaction,
+                clientTransactionId,
+            )
+    }
+
+    private fun HttpRequest.withGuestAuthHeaders(
+        guestToken: String,
     ): HttpRequest = also {
         it.header("authorization", "Bearer $BEARER_TOKEN")
         it.header("user-agent", USER_AGENT)
@@ -297,14 +378,59 @@ object InternalUtility {
         it.header("accept", "*/*")
         it.header("origin", "https://x.com")
         it.header("referer", "https://x.com/")
+    }
 
-        if (config.enableClientTransaction) {
-            val path = try {
-                val afterScheme = url.substringAfter("://")
-                val pathStart = afterScheme.indexOf('/')
-                if (pathStart >= 0) afterScheme.substring(pathStart).substringBefore('?') else ""
-            } catch (_: Exception) { "" }
+    private fun HttpRequest.withResolvedClientTransactionHeader(
+        config: XWebConfig,
+        method: String,
+        path: String,
+        requireClientTransaction: Boolean,
+        clientTransactionId: String?,
+    ): HttpRequest = also {
+        if (clientTransactionId != null) {
+            it.header("x-client-transaction-id", clientTransactionId)
+        } else if (
+            (config.enableClientTransaction || requireClientTransaction) &&
+            ClientTransactionId.isPairDataAvailable()
+        ) {
             it.header("x-client-transaction-id", generateClientTransactionId(method, path))
+        }
+    }
+
+    private suspend fun prepareClientTransactionId(
+        config: XWebConfig,
+        method: String,
+        path: String,
+        requireClientTransaction: Boolean,
+    ): String? {
+        val configured = configuredClientTransactionId(config, method, path)
+        if (configured == null &&
+            (requireClientTransaction || config.enableClientTransaction)
+        ) {
+            ClientTransactionId.refreshPairData(config)
+        }
+        return configured
+    }
+
+    private fun configuredClientTransactionId(
+        config: XWebConfig,
+        method: String,
+        path: String,
+    ): String? {
+        config.consumeClientTransactionId()?.let { return it }
+
+        return config.clientTransactionIdProvider
+            ?.invoke(method, path)
+            ?.takeIf { it.isNotBlank() }
+    }
+
+    private fun transactionPath(url: String): String {
+        val afterScheme = url.substringAfter("://")
+        val pathStart = afterScheme.indexOf('/')
+        return if (pathStart >= 0) {
+            afterScheme.substring(pathStart).substringBefore('?')
+        } else {
+            ""
         }
     }
 
@@ -378,28 +504,44 @@ object InternalUtility {
      * Feature flags required for SearchTimeline GraphQL requests.
      */
     fun searchFeatures(): Map<String, Boolean> = mapOf(
-        "rweb_tipjar_consumption_enabled" to true,
-        "responsive_web_graphql_exclude_directive_enabled" to true,
+        "rweb_video_screen_enabled" to false,
+        "rweb_cashtags_enabled" to true,
+        "profile_label_improvements_pcf_label_in_post_enabled" to true,
+        "responsive_web_profile_redirect_enabled" to true,
+        "rweb_tipjar_consumption_enabled" to false,
         "verified_phone_label_enabled" to false,
         "creator_subscriptions_tweet_preview_api_enabled" to true,
         "responsive_web_graphql_timeline_navigation_enabled" to true,
         "responsive_web_graphql_skip_user_profile_image_extensions_enabled" to false,
+        "premium_content_api_read_enabled" to false,
         "communities_web_enable_tweet_community_results_fetch" to true,
         "c9s_tweet_anatomy_moderator_badge_enabled" to true,
+        "responsive_web_grok_analyze_button_fetch_trends_enabled" to false,
+        "responsive_web_grok_analyze_post_followups_enabled" to true,
+        "rweb_cashtags_composer_attachment_enabled" to true,
+        "responsive_web_jetfuel_frame" to true,
+        "responsive_web_grok_share_attachment_enabled" to true,
+        "responsive_web_grok_annotations_enabled" to true,
         "articles_preview_enabled" to true,
         "responsive_web_edit_tweet_api_enabled" to true,
+        "rweb_conversational_replies_downvote_enabled" to false,
         "graphql_is_translatable_rweb_tweet_is_translatable_enabled" to true,
         "view_counts_everywhere_api_enabled" to true,
         "longform_notetweets_consumption_enabled" to true,
         "responsive_web_twitter_article_tweet_consumption_enabled" to true,
-        "tweet_awards_web_tipping_enabled" to false,
-        "creator_subscriptions_quote_tweet_preview_enabled" to false,
+        "content_disclosure_indicator_enabled" to true,
+        "content_disclosure_ai_generated_indicator_enabled" to true,
+        "responsive_web_grok_show_grok_translated_post" to true,
+        "responsive_web_grok_analysis_button_from_backend" to true,
+        "post_ctas_fetch_enabled" to false,
         "freedom_of_speech_not_reach_fetch_enabled" to true,
         "standardized_nudges_misinfo" to true,
         "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled" to true,
-        "rweb_video_timestamps_enabled" to true,
         "longform_notetweets_rich_text_read_enabled" to true,
-        "longform_notetweets_inline_media_enabled" to true,
+        "longform_notetweets_inline_media_enabled" to false,
+        "responsive_web_grok_image_annotation_enabled" to true,
+        "responsive_web_grok_imagine_annotation_enabled" to true,
+        "responsive_web_grok_community_note_auto_translation_is_enabled" to true,
         "responsive_web_enhance_cards_enabled" to false,
     )
 
@@ -694,15 +836,35 @@ object InternalUtility {
         url: String,
         queryParams: Map<String, String> = emptyMap(),
         endpoint: String = "",
+        requireClientTransaction: Boolean = false,
     ): HttpRequest {
         // Resolve session from pool if configured
         config.resolveSession(endpoint)
 
-        return when {
-            isOAuth(config) -> withOAuthHeaders(config, method, url, queryParams)
-            isGuest(config) -> withGuestHeaders(config, GuestTokenProvider.token(config), method, url)
-            else -> withCookieHeaders(config, method, url)
+        if (isOAuth(config)) {
+            return withOAuthHeaders(config, method, url, queryParams)
         }
+
+        val path = transactionPath(url)
+        val clientTransactionId = prepareClientTransactionId(
+            config,
+            method,
+            path,
+            requireClientTransaction,
+        )
+
+        val request = if (isGuest(config)) {
+            withGuestAuthHeaders(GuestTokenProvider.token(config))
+        } else {
+            withCookieAuthHeaders(config)
+        }
+        return request.withResolvedClientTransactionHeader(
+            config,
+            method,
+            path,
+            requireClientTransaction,
+            clientTransactionId,
+        )
     }
 
     /**
@@ -755,14 +917,22 @@ object InternalUtility {
     suspend fun <T> withQueryIdRetry(
         operationName: String,
         queryId: String,
+        refreshOnNotFound: Boolean = true,
+        config: XWebConfig? = null,
         execute: suspend (resolvedQueryId: String) -> T,
     ): T {
+        val initialQueryId = QueryIdResolver.cachedId(operationName) ?: queryId
         return try {
-            execute(queryId)
+            execute(initialQueryId)
         } catch (e: XWebException) {
-            if (e.status == 404) {
-                val newQueryId = QueryIdResolver.resolve(operationName, queryId)
-                if (newQueryId != queryId) {
+            if (e.status == 404 && refreshOnNotFound) {
+                val newQueryId = QueryIdResolver.resolve(
+                    operationName = operationName,
+                    fallback = initialQueryId,
+                    forceRefresh = true,
+                    config = config,
+                )
+                if (newQueryId != initialQueryId) {
                     execute(newQueryId)
                 } else {
                     throw e
@@ -775,8 +945,7 @@ object InternalUtility {
 
     /**
      * Generate a client transaction ID.
-     * Uses the Nitter-style crypto algorithm when pair data is available,
-     * falls back to a simple random string otherwise.
+     * Requires current transaction pair data and throws when it is unavailable.
      *
      * @param method HTTP method for the request.
      * @param path URL path for the request.
@@ -786,12 +955,19 @@ object InternalUtility {
     }
 
     /**
-     * Apply client transaction header if enabled.
+     * Apply a configured or cached client transaction header without refreshing
+     * transaction pair data.
      */
-    fun HttpRequest.withClientTransaction(config: XWebConfig): HttpRequest = also {
-        if (config.enableClientTransaction) {
-            it.header("x-client-transaction-id", generateClientTransactionId())
-        }
+    fun HttpRequest.withClientTransaction(config: XWebConfig): HttpRequest {
+        val method = "GET"
+        val path = ""
+        return withResolvedClientTransactionHeader(
+            config = config,
+            method = method,
+            path = path,
+            requireClientTransaction = false,
+            clientTransactionId = configuredClientTransactionId(config, method, path),
+        )
     }
 
     /**

@@ -49,7 +49,9 @@ class HomeResourceImpl(
         queryId: String,
         operationName: String,
     ): Response<HomeTimelineResponse> {
-        val url = graphqlUrl(config, queryId, operationName)
+        val context = config.resolveRequestContext(operationName)
+        val requestConfig = context.config
+        val url = graphqlUrl(requestConfig, queryId, operationName)
 
         val variables = buildJsonObject {
             put("count", request.count)
@@ -66,15 +68,22 @@ class HomeResourceImpl(
         val featuresStr = features.toString()
         val queryParams = mapOf("variables" to variablesStr, "features" to featuresStr)
 
-        val httpRequest = httpRequest(config)
+        val httpRequest = httpRequest(requestConfig)
             .url(url)
-            .setTimeouts(config)
+            .setTimeouts(requestConfig)
             .query("variables", variablesStr)
             .query("features", featuresStr)
-            .withAuthHeaders(config, "GET", url, queryParams)
+            .withAuthHeaders(
+                requestConfig,
+                "GET",
+                url,
+                queryParams,
+                endpoint = operationName,
+                requireClientTransaction = true,
+            )
 
         val response = httpRequest.get()
-        trackResponse(config, operationName, response)
+        trackResponse(context, operationName, response)
         val body = response.stringBody
 
         if (response.status !in 200..299) {

@@ -38,7 +38,10 @@ class CookieStringTest {
     fun testEnableClientTransaction() {
         val config = XWebConfig()
         assertEquals(false, config.enableClientTransaction)
+        assertNull(config.clientTransactionId)
         config.enableClientTransaction = true
+        config.clientTransactionId = "transaction-id"
         assertEquals(true, config.enableClientTransaction)
+        assertEquals("transaction-id", config.clientTransactionId)
     }
 }

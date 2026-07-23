@@ -2,19 +2,14 @@ package work.socialhub.kxweb
 
 import kotlinx.coroutines.test.runTest
 import work.socialhub.kxweb.entity.home.HomeTimelineRequest
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
 class HomeTimelineTest {
 
     @Test
-    @Ignore("Integration test - requires auth credentials")
     fun testGetHomeTimeline() = runTest {
-        val xweb = XWebFactory.instance(
-            authToken = System.getenv("XWEB_AUTH_TOKEN") ?: "",
-            csrfToken = System.getenv("XWEB_CSRF_TOKEN") ?: "",
-        )
+        val xweb = authenticatedIntegrationXWeb()
 
         val request = HomeTimelineRequest().also {
             it.count = 5
@@ -34,12 +29,8 @@ class HomeTimelineTest {
     }
 
     @Test
-    @Ignore("Integration test - requires auth credentials")
     fun testGetHomeLatestTimeline() = runTest {
-        val xweb = XWebFactory.instance(
-            authToken = System.getenv("XWEB_AUTH_TOKEN") ?: "",
-            csrfToken = System.getenv("XWEB_CSRF_TOKEN") ?: "",
-        )
+        val xweb = authenticatedIntegrationXWeb()
 
         val request = HomeTimelineRequest().also {
             it.count = 5
