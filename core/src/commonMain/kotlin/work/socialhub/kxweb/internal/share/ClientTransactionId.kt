@@ -1,12 +1,15 @@
 package work.socialhub.kxweb.internal.share
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import work.socialhub.khttpclient.HttpRequest
 import work.socialhub.kxweb.XWebConfig
 import work.socialhub.kxweb.internal.share.InternalUtility.USER_AGENT
 import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
 import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
 import work.socialhub.kxweb.util.Sha256Util
+import kotlin.concurrent.Volatile
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.math.PI
@@ -34,8 +37,13 @@ object ClientTransactionId {
     private const val ADDITIONAL_RANDOM_NUMBER = 3
     private const val CACHE_DURATION_SECONDS = 3600L
 
+    @Volatile
     private var cachedPair: TransactionPair? = null
+
+    @Volatile
     private var cacheTimestamp: Long = 0L
+
+    private val refreshMutex = Mutex()
 
     internal data class TransactionPair(
         val keyBytes: ByteArray,
@@ -79,71 +87,80 @@ object ClientTransactionId {
             return
         }
 
-        try {
-            val homeRequest = createRequest(config)
-                .url(HOME_URL)
-                .header("accept-language", "en-US,en;q=0.9")
-                .header("cache-control", "no-cache")
-                .header("referer", "https://x.com/")
-                .header("user-agent", USER_AGENT)
-                .header("x-twitter-active-user", "yes")
-                .header("x-twitter-client-language", "en")
+        refreshMutex.withLock {
+            val refreshedAt = Clock.System.now().epochSeconds
+            if (cachedPair != null &&
+                (refreshedAt - cacheTimestamp) < CACHE_DURATION_SECONDS
+            ) {
+                return@withLock
+            }
 
-            val cookie = config?.cookieString ?: config?.let {
-                if (it.authToken != null && it.csrfToken != null) {
-                    "auth_token=${it.authToken}; ct0=${it.csrfToken}"
-                } else {
-                    null
+            try {
+                val homeRequest = createRequest(config)
+                    .url(HOME_URL)
+                    .header("accept-language", "en-US,en;q=0.9")
+                    .header("cache-control", "no-cache")
+                    .header("referer", "https://x.com/")
+                    .header("user-agent", USER_AGENT)
+                    .header("x-twitter-active-user", "yes")
+                    .header("x-twitter-client-language", "en")
+
+                val cookie = config?.cookieString ?: config?.let {
+                    if (it.authToken != null && it.csrfToken != null) {
+                        "auth_token=${it.authToken}; ct0=${it.csrfToken}"
+                    } else {
+                        null
+                    }
                 }
+                if (!cookie.isNullOrBlank()) {
+                    homeRequest.header("cookie", cookie)
+                }
+
+                val homeResponse = homeRequest.get()
+                if (homeResponse.status !in 200..299) return@withLock
+                val homeHtml = homeResponse.stringBody
+
+                val verification = Regex(
+                    """<meta[^>]*name=["']twitter-site-verification["'][^>]*content=["']([^"']+)["']"""
+                ).find(homeHtml)?.groupValues?.get(1) ?: return@withLock
+
+                val chunkIndex = Regex(""",(\d+):["']ondemand\.s["']""")
+                    .find(homeHtml)
+                    ?.groupValues
+                    ?.get(1)
+                    ?: return@withLock
+                val chunkHash = Regex(""",$chunkIndex:["']([0-9a-f]+)["']""")
+                    .find(homeHtml)
+                    ?.groupValues
+                    ?.get(1)
+                    ?: return@withLock
+
+                val ondemandResponse = createRequest(config)
+                    .url(ONDEMAND_URL_TEMPLATE.replace("%s", chunkHash))
+                    .header("user-agent", USER_AGENT)
+                    .get()
+                if (ondemandResponse.status !in 200..299) return@withLock
+
+                val indices = Regex("""\(\w+\[(\d{1,2})],\s*16\)""")
+                    .findAll(ondemandResponse.stringBody)
+                    .map { it.groupValues[1].toInt() }
+                    .toList()
+                if (indices.size < 2) return@withLock
+
+                val keyBytes = Base64.decode(verification)
+                val animationKey = computeAnimationKey(
+                    keyBytes = keyBytes,
+                    rowIndex = indices.first(),
+                    keyByteIndices = indices.drop(1),
+                    homeHtml = homeHtml,
+                )
+                cachedPair = TransactionPair(keyBytes, animationKey)
+                cacheTimestamp = refreshedAt
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Keep the previous cached pair, if any.
             }
-            if (!cookie.isNullOrBlank()) {
-                homeRequest.header("cookie", cookie)
-            }
-
-            val homeResponse = homeRequest.get()
-            if (homeResponse.status !in 200..299) return
-            val homeHtml = homeResponse.stringBody
-
-            val verification = Regex(
-                """<meta[^>]*name=["']twitter-site-verification["'][^>]*content=["']([^"']+)["']"""
-            ).find(homeHtml)?.groupValues?.get(1) ?: return
-
-            val chunkIndex = Regex(""",(\d+):["']ondemand\.s["']""")
-                .find(homeHtml)
-                ?.groupValues
-                ?.get(1)
-                ?: return
-            val chunkHash = Regex(""",$chunkIndex:["']([0-9a-f]+)["']""")
-                .find(homeHtml)
-                ?.groupValues
-                ?.get(1)
-                ?: return
-
-            val ondemandResponse = createRequest(config)
-                .url(ONDEMAND_URL_TEMPLATE.replace("%s", chunkHash))
-                .header("user-agent", USER_AGENT)
-                .get()
-            if (ondemandResponse.status !in 200..299) return
-
-            val indices = Regex("""\(\w+\[(\d{1,2})],\s*16\)""")
-                .findAll(ondemandResponse.stringBody)
-                .map { it.groupValues[1].toInt() }
-                .toList()
-            if (indices.size < 2) return
-
-            val keyBytes = Base64.decode(verification)
-            val animationKey = computeAnimationKey(
-                keyBytes = keyBytes,
-                rowIndex = indices.first(),
-                keyByteIndices = indices.drop(1),
-                homeHtml = homeHtml,
-            )
-            cachedPair = TransactionPair(keyBytes, animationKey)
-            cacheTimestamp = now
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            // Keep the previous cached pair, if any.
         }
     }
 
