@@ -220,11 +220,11 @@ object InternalUtility {
             }
         }
 
-        val clientTransactionId = config.clientTransactionId
-        if (!clientTransactionId.isNullOrBlank()) {
+        val path = transactionPath(url)
+        val clientTransactionId = configuredClientTransactionId(config, method, path)
+        if (clientTransactionId != null) {
             it.header("x-client-transaction-id", clientTransactionId)
         } else if (config.enableClientTransaction || requireClientTransaction) {
-            val path = transactionPath(url)
             it.header("x-client-transaction-id", generateClientTransactionId(method, path))
         }
     }
@@ -303,13 +303,28 @@ object InternalUtility {
         it.header("origin", "https://x.com")
         it.header("referer", "https://x.com/")
 
-        val clientTransactionId = config.clientTransactionId
-        if (!clientTransactionId.isNullOrBlank()) {
+        val path = transactionPath(url)
+        val clientTransactionId = configuredClientTransactionId(config, method, path)
+        if (clientTransactionId != null) {
             it.header("x-client-transaction-id", clientTransactionId)
         } else if (config.enableClientTransaction || requireClientTransaction) {
-            val path = transactionPath(url)
             it.header("x-client-transaction-id", generateClientTransactionId(method, path))
         }
+    }
+
+    private fun configuredClientTransactionId(
+        config: XWebConfig,
+        method: String,
+        path: String,
+    ): String? {
+        config.clientTransactionId
+            ?.takeIf { it.isNotBlank() }
+            ?.also { config.clientTransactionId = null }
+            ?.let { return it }
+
+        return config.clientTransactionIdProvider
+            ?.invoke(method, path)
+            ?.takeIf { it.isNotBlank() }
     }
 
     private fun transactionPath(url: String): String {

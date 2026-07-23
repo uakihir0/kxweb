@@ -93,9 +93,16 @@ open class XWebConfig {
 
     /**
      * Explicit x-client-transaction-id header value.
-     * When set, this takes precedence over generated values.
+     * This is consumed by the next eligible request and then cleared.
      */
     var clientTransactionId: String? = null
+
+    /**
+     * Supplies an x-client-transaction-id for each request.
+     * The arguments are the HTTP method and URL path.
+     */
+    @JsExport.Ignore
+    var clientTransactionIdProvider: ((String, String) -> String)? = null
 
     // == Session Pool ==
 
