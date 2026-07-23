@@ -21,6 +21,7 @@ import work.socialhub.kxweb.internal.entity.UserLegacy
 import work.socialhub.kxweb.internal.entity.UserResult
 import work.socialhub.kxweb.internal.entity.UserResultCore
 import work.socialhub.kxweb.internal.entity.UserResults
+import work.socialhub.kxweb.internal.entity.UserVerification
 import work.socialhub.kxweb.internal.share.TweetParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -254,6 +255,18 @@ class TweetParserTest {
     }
 
     @Test
+    fun testParseUserResultPreservesBlueVerification() {
+        val userResult = UserResult(
+            verification = UserVerification(verified = false),
+            isBlueVerified = true,
+        )
+
+        val user = TweetParser.parseUserResult(userResult)
+
+        assertEquals(true, user.verified)
+    }
+
+    @Test
     fun testParseTimelineInstructions() {
         val instructions = listOf(
             TimelineInstruction(
@@ -286,6 +299,22 @@ class TweetParserTest {
                         )
                     ),
                     TimelineEntry(
+                        entryId = "tweet-3",
+                        content = TimelineEntryContent(
+                            itemContent = ItemContent(
+                                tweetResults = TweetResults(
+                                    result = TweetResult(
+                                        typename = "TweetWithVisibilityResults",
+                                        tweet = TweetResult(
+                                            restId = "3",
+                                            legacy = TweetLegacy(fullText = "Wrapped tweet"),
+                                        ),
+                                    )
+                                )
+                            )
+                        )
+                    ),
+                    TimelineEntry(
                         entryId = "cursor-bottom",
                         content = TimelineEntryContent(
                             cursorType = "Bottom",
@@ -298,11 +327,13 @@ class TweetParserTest {
 
         val result = TweetParser.parseTimelineInstructions(instructions)
 
-        assertEquals(2, result.tweets.size)
+        assertEquals(3, result.tweets.size)
         assertEquals("1", result.tweets[0].id)
         assertEquals("Tweet 1", result.tweets[0].text)
         assertEquals("2", result.tweets[1].id)
         assertEquals("Tweet 2", result.tweets[1].text)
+        assertEquals("3", result.tweets[2].id)
+        assertEquals("Wrapped tweet", result.tweets[2].text)
         assertEquals("next_cursor_value", result.cursor)
     }
 

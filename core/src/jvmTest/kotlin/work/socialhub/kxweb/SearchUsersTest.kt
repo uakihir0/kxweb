@@ -2,7 +2,6 @@ package work.socialhub.kxweb
 
 import kotlinx.coroutines.test.runTest
 import work.socialhub.kxweb.entity.search.SearchUsersRequest
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -10,17 +9,14 @@ import kotlin.test.assertTrue
  * Integration test for X (Twitter) user search.
  *
  * User search requires a logged-in session (guest access returns 404).
- * Set XWEB_AUTH_TOKEN and XWEB_CSRF_TOKEN environment variables from a
- * browser session (Application > Cookies > x.com > auth_token, ct0).
+ * Set XWEB_RUN_INTEGRATION_TESTS=true and either XWEB_COOKIE or both
+ * XWEB_AUTH_TOKEN and XWEB_CSRF_TOKEN from a browser session.
  */
 class SearchUsersTest {
 
     @Test
-    @Ignore("Integration test - requires auth credentials")
     fun testSearchUsers() = runTest {
-        val authToken = System.getenv("XWEB_AUTH_TOKEN") ?: ""
-        val csrfToken = System.getenv("XWEB_CSRF_TOKEN") ?: ""
-        val xweb = XWebFactory.instance(authToken, csrfToken)
+        val xweb = authenticatedIntegrationXWeb()
 
         val request = SearchUsersRequest().also {
             it.query = "Kotlin"

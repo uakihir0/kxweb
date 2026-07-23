@@ -1,6 +1,10 @@
 package work.socialhub.kxweb
 
+import kotlinx.coroutines.test.runTest
+import work.socialhub.khttpclient.HttpRequest
 import work.socialhub.kxweb.entity.share.RateLimit
+import work.socialhub.kxweb.internal.share.InternalUtility
+import work.socialhub.kxweb.internal.share.InternalUtility.withAuthHeaders
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -181,6 +185,77 @@ class XWebSessionPoolTest {
                 assertNull(config.authToken)
             }
         }
+    }
+
+    @Test
+    fun testPooledCookieSessionIsNotClassifiedAsGuestAfterResolution() {
+        val config = XWebConfig()
+        config.sessionPool = XWebSessionPool(
+            listOf(XWebSession.cookie("auth1", "csrf1"))
+        )
+
+        assertTrue(InternalUtility.isGuest(config))
+
+        config.resolveSession("SearchTimeline")
+
+        assertFalse(InternalUtility.isGuest(config))
+    }
+
+    @Test
+    fun testEndpointSelectionIsPreservedWhenApplyingHeaders() = runTest {
+        val first = XWebSession.cookie("auth1", "csrf1")
+        val second = XWebSession.cookie("auth2", "csrf2")
+        val pool = XWebSessionPool(listOf(first, second))
+        pool.updateRateLimit(
+            first,
+            "SearchTimeline",
+            RateLimit(
+                limit = 100,
+                remaining = 0,
+                resetEpochSeconds = kotlin.time.Clock.System.now().epochSeconds + 300,
+            ),
+        )
+        val config = XWebConfig().apply {
+            sessionPool = pool
+        }
+
+        config.resolveSession("SearchTimeline")
+        assertEquals(second, config.currentSession)
+
+        HttpRequest().withAuthHeaders(
+            config = config,
+            method = "GET",
+            url = "https://x.com/i/api/graphql/id/SearchTimeline",
+            endpoint = "SearchTimeline",
+        )
+
+        assertEquals(second, config.currentSession)
+    }
+
+    @Test
+    fun testRequestContextsKeepSelectedSessionsIsolated() {
+        val cookie = XWebSession.cookie("auth1", "csrf1")
+        val oauth = XWebSession.oauth("token1", "secret1")
+        val pool = XWebSessionPool(listOf(cookie, oauth))
+        val reset = kotlin.time.Clock.System.now().epochSeconds + 300
+        pool.updateRateLimit(oauth, "HomeTimeline", RateLimit(100, 0, reset))
+        pool.updateRateLimit(cookie, "HomeLatestTimeline", RateLimit(100, 0, reset))
+        val config = XWebConfig().apply {
+            sessionPool = pool
+        }
+
+        val homeContext = config.resolveRequestContext("HomeTimeline")
+        val latestContext = config.resolveRequestContext("HomeLatestTimeline")
+
+        assertEquals(cookie, homeContext.session)
+        assertEquals("auth1", homeContext.config.authToken)
+        assertNull(homeContext.config.oauthToken)
+        assertEquals(oauth, latestContext.session)
+        assertEquals("token1", latestContext.config.oauthToken)
+        assertNull(latestContext.config.authToken)
+        assertNull(config.currentSession)
+        assertNull(config.authToken)
+        assertNull(config.oauthToken)
     }
 
     @Test

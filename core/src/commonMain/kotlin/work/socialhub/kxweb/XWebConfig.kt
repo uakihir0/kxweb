@@ -1,7 +1,38 @@
 package work.socialhub.kxweb
 
 import work.socialhub.kxweb.domain.Service
+import kotlin.concurrent.atomics.AtomicReference
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.js.JsExport
+
+@OptIn(ExperimentalAtomicApi::class)
+internal class ClientTransactionIdState {
+    private class Slot(val value: String?)
+
+    private val slot = AtomicReference(Slot(null))
+
+    var value: String?
+        get() = slot.load().value
+        set(value) {
+            slot.store(Slot(value))
+        }
+
+    fun consume(): String? {
+        while (true) {
+            val current = slot.load()
+            val value = current.value?.takeIf { it.isNotBlank() } ?: return null
+            if (slot.compareAndSet(current, Slot(null))) {
+                return value
+            }
+        }
+    }
+}
+
+internal data class XWebRequestContext(
+    val config: XWebConfig,
+    val pool: XWebSessionPool?,
+    val session: XWebSession?,
+)
 
 @JsExport
 open class XWebConfig {
@@ -91,6 +122,26 @@ open class XWebConfig {
      */
     var enableClientTransaction: Boolean = false
 
+    /**
+     * Explicit x-client-transaction-id header value.
+     * This is consumed by the next eligible request and then cleared.
+     */
+    var clientTransactionId: String?
+        get() = clientTransactionIdState.value
+        set(value) {
+            clientTransactionIdState.value = value
+        }
+
+    @JsExport.Ignore
+    internal var clientTransactionIdState = ClientTransactionIdState()
+
+    /**
+     * Supplies an x-client-transaction-id for each request.
+     * The arguments are the HTTP method and URL path.
+     */
+    @JsExport.Ignore
+    var clientTransactionIdProvider: ((String, String) -> String)? = null
+
     // == Session Pool ==
 
     /**
@@ -123,6 +174,46 @@ open class XWebConfig {
         val session = pool.acquireSession(endpoint) ?: return this
 
         currentSession = session
+        applySession(session)
+        return this
+    }
+
+    internal fun consumeClientTransactionId(): String? {
+        return clientTransactionIdState.consume()
+    }
+
+    internal fun resolveRequestContext(endpoint: String): XWebRequestContext {
+        val pool = sessionPool
+        val session = pool?.acquireSession(endpoint)
+        val snapshot = copyForRequest(session)
+        return XWebRequestContext(snapshot, pool, session)
+    }
+
+    private fun copyForRequest(session: XWebSession?): XWebConfig {
+        return XWebConfig().also { snapshot ->
+            snapshot.apiBaseUri = apiBaseUri
+            snapshot.authToken = authToken
+            snapshot.csrfToken = csrfToken
+            snapshot.oauthToken = oauthToken
+            snapshot.oauthSecret = oauthSecret
+            snapshot.guestMode = guestMode
+            snapshot.guestToken = guestToken
+            snapshot.skipSSLValidation = skipSSLValidation
+            snapshot.requestTimeoutMillis = requestTimeoutMillis
+            snapshot.connectTimeoutMillis = connectTimeoutMillis
+            snapshot.socketTimeoutMillis = socketTimeoutMillis
+            snapshot.cookieString = cookieString
+            snapshot.enableClientTransaction = enableClientTransaction
+            snapshot.clientTransactionIdState = clientTransactionIdState
+            snapshot.clientTransactionIdProvider = clientTransactionIdProvider
+            snapshot.currentSession = session
+            if (session != null) {
+                snapshot.applySession(session)
+            }
+        }
+    }
+
+    private fun applySession(session: XWebSession) {
         when (session) {
             is XWebSession.Cookie -> {
                 authToken = session.authToken
@@ -139,6 +230,5 @@ open class XWebConfig {
                 cookieString = null
             }
         }
-        return this
     }
 }

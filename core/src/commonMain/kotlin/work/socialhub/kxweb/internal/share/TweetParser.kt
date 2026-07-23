@@ -88,9 +88,11 @@ object TweetParser {
             followingCount = userLegacy?.friendsCount,
             statusesCount = userLegacy?.statusesCount,
             listedCount = userLegacy?.listedCount,
-            verified = userResult.verification?.verified
-                ?: userResult.isBlueVerified
-                ?: userLegacy?.verified,
+            verified = listOfNotNull(
+                userResult.verification?.verified,
+                userResult.isBlueVerified,
+                userLegacy?.verified,
+            ).takeIf { it.isNotEmpty() }?.any { it },
             createdAt = userCore?.createdAt ?: userLegacy?.createdAt,
             location = userResult.location?.location ?: userLegacy?.location,
             url = userLegacy?.url,
@@ -122,8 +124,10 @@ object TweetParser {
                     ?.result
                     ?: continue
 
-                val legacy = tweetResult.legacy ?: continue
-                tweets.add(parseTweetResult(tweetResult))
+                val tweet = parseTweetResult(tweetResult)
+                if (tweet.id != null) {
+                    tweets.add(tweet)
+                }
             }
         }
 

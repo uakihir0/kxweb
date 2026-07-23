@@ -19,7 +19,7 @@ import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
 import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
 import work.socialhub.kxweb.internal.share.InternalUtility.trackResponse
 import work.socialhub.kxweb.internal.share.InternalUtility.withAuthHeaders
-import work.socialhub.kxweb.internal.share.InternalUtility.withCookieHeaders
+import work.socialhub.kxweb.internal.share.InternalUtility.withPreparedCookieHeaders
 import work.socialhub.kxweb.internal.share.TweetParser
 import work.socialhub.kxweb.model.User
 import work.socialhub.kxweb.util.toBlocking
@@ -47,7 +47,7 @@ class AccountResourceImpl(
                 val request = httpRequest(config)
                     .url(url)
                     .setTimeouts(config)
-                    .withCookieHeaders(config)
+                    .withPreparedCookieHeaders(config, "GET", url)
 
                 val response = request.get()
                 trackResponse(config, "AccountSettings", response)

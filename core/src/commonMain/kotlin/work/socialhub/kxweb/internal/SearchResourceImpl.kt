@@ -3,6 +3,7 @@ package work.socialhub.kxweb.internal
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import work.socialhub.kxweb.XWebConfig
+import work.socialhub.kxweb.XWebRequestContext
 import work.socialhub.kxweb.api.SearchResource
 import work.socialhub.kxweb.domain.QueryId
 import work.socialhub.kxweb.entity.search.SearchSearchRequest
@@ -16,10 +17,12 @@ import work.socialhub.kxweb.internal.share.InternalUtility
 import work.socialhub.kxweb.internal.share.InternalUtility.fromJson
 import work.socialhub.kxweb.internal.share.InternalUtility.graphqlUrl
 import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
+import work.socialhub.kxweb.internal.share.InternalUtility.isGuest
 import work.socialhub.kxweb.internal.share.InternalUtility.searchFeatures
 import work.socialhub.kxweb.internal.share.InternalUtility.setTimeouts
 import work.socialhub.kxweb.internal.share.InternalUtility.trackResponse
 import work.socialhub.kxweb.internal.share.InternalUtility.withAuthHeaders
+import work.socialhub.kxweb.internal.share.InternalUtility.withQueryIdRetry
 import work.socialhub.kxweb.internal.share.TweetParser
 import work.socialhub.kxweb.util.toBlocking
 
@@ -30,13 +33,31 @@ class SearchResourceImpl(
     override suspend fun searchTweets(
         request: SearchSearchRequest
     ): Response<SearchSearchResponse> {
-        val url = graphqlUrl(config, QueryId.SEARCH_TIMELINE, "SearchTimeline")
+        val context = config.resolveRequestContext("SearchTimeline")
+        return withQueryIdRetry(
+            operationName = "SearchTimeline",
+            queryId = QueryId.SEARCH_TIMELINE,
+            config = context.config,
+        ) { resolvedQueryId ->
+            searchTweets(request, resolvedQueryId, context)
+        }
+    }
+
+    private suspend fun searchTweets(
+        request: SearchSearchRequest,
+        queryId: String,
+        context: XWebRequestContext,
+    ): Response<SearchSearchResponse> {
+        val requestConfig = context.config
+        val url = graphqlUrl(requestConfig, queryId, "SearchTimeline")
 
         val variables = buildJsonObject {
             request.query?.let { put("rawQuery", it) }
             put("count", request.count)
             put("querySource", "typed_query")
             put("product", request.searchType.product)
+            put("withGrokTranslatedBio", true)
+            put("withQuickPromoteEligibilityTweetFields", false)
             request.cursor?.let { put("cursor", it) }
         }
 
@@ -48,15 +69,22 @@ class SearchResourceImpl(
         val featuresStr = features.toString()
         val queryParams = mapOf("variables" to variablesStr, "features" to featuresStr)
 
-        val httpRequest = httpRequest(config)
+        val httpRequest = httpRequest(requestConfig)
             .url(url)
-            .setTimeouts(config)
+            .setTimeouts(requestConfig)
             .query("variables", variablesStr)
             .query("features", featuresStr)
-            .withAuthHeaders(config, "GET", url, queryParams)
+            .withAuthHeaders(
+                requestConfig,
+                "GET",
+                url,
+                queryParams,
+                endpoint = "SearchTimeline",
+                requireClientTransaction = true,
+            )
 
         val response = httpRequest.get()
-        trackResponse(config, "SearchTimeline", response)
+        trackResponse(context, "SearchTimeline", response)
         val responseBody = response.stringBody
 
         if (response.status !in 200..299) {
@@ -86,13 +114,32 @@ class SearchResourceImpl(
     override suspend fun searchUsers(
         request: SearchUsersRequest
     ): Response<SearchUsersResponse> {
-        val url = graphqlUrl(config, QueryId.SEARCH_TIMELINE, "SearchTimeline")
+        val context = config.resolveRequestContext("SearchTimeline")
+        return withQueryIdRetry(
+            operationName = "SearchTimeline",
+            queryId = QueryId.SEARCH_TIMELINE,
+            refreshOnNotFound = !isGuest(context.config),
+            config = context.config,
+        ) { resolvedQueryId ->
+            searchUsers(request, resolvedQueryId, context)
+        }
+    }
+
+    private suspend fun searchUsers(
+        request: SearchUsersRequest,
+        queryId: String,
+        context: XWebRequestContext,
+    ): Response<SearchUsersResponse> {
+        val requestConfig = context.config
+        val url = graphqlUrl(requestConfig, queryId, "SearchTimeline")
 
         val variables = buildJsonObject {
             request.query?.let { put("rawQuery", it) }
             put("count", request.count)
             put("querySource", "typed_query")
             put("product", SearchType.PEOPLE.product)
+            put("withGrokTranslatedBio", true)
+            put("withQuickPromoteEligibilityTweetFields", false)
             request.cursor?.let { put("cursor", it) }
         }
 
@@ -104,15 +151,22 @@ class SearchResourceImpl(
         val featuresStr = features.toString()
         val queryParams = mapOf("variables" to variablesStr, "features" to featuresStr)
 
-        val httpRequest = httpRequest(config)
+        val httpRequest = httpRequest(requestConfig)
             .url(url)
-            .setTimeouts(config)
+            .setTimeouts(requestConfig)
             .query("variables", variablesStr)
             .query("features", featuresStr)
-            .withAuthHeaders(config, "GET", url, queryParams)
+            .withAuthHeaders(
+                requestConfig,
+                "GET",
+                url,
+                queryParams,
+                endpoint = "SearchTimeline",
+                requireClientTransaction = true,
+            )
 
         val response = httpRequest.get()
-        trackResponse(config, "SearchTimeline", response)
+        trackResponse(context, "SearchTimeline", response)
         val responseBody = response.stringBody
 
         if (response.status !in 200..299) {

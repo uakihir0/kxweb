@@ -11,7 +11,7 @@ package work.socialhub.kxweb.domain
  */
 object QueryId {
     // Search
-    const val SEARCH_TIMELINE = "6AAys3t42mosm_yTI_QENg"
+    const val SEARCH_TIMELINE = "hz_94eVAtrtQo_vO3my7Rw"
 
     // Tweet
     const val TWEET_DETAIL = "_NvJCnIjOW__EP5-RF197A"

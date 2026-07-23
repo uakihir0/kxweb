@@ -3,20 +3,19 @@ package work.socialhub.kxweb
 import kotlinx.coroutines.test.runTest
 import work.socialhub.kxweb.entity.search.SearchSearchRequest
 import work.socialhub.kxweb.entity.search.SearchType
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
  * Integration test for X (Twitter) search API.
- * These tests call the real X API and should be run manually.
+ * Set XWEB_RUN_INTEGRATION_TESTS=true and either XWEB_COOKIE or both
+ * XWEB_AUTH_TOKEN and XWEB_CSRF_TOKEN to run against the real X API.
  */
 class SearchTest {
 
     @Test
-    @Ignore("Integration test - calls real X API")
     fun testSearchTweets() = runTest {
-        val xweb = XWebFactory.instance()
+        val xweb = authenticatedIntegrationXWeb()
 
         val request = SearchSearchRequest().also {
             it.query = "Kotlin"
@@ -42,9 +41,8 @@ class SearchTest {
     }
 
     @Test
-    @Ignore("Integration test - calls real X API")
     fun testSearchTweetsBlocking() {
-        val xweb = XWebFactory.instance()
+        val xweb = authenticatedIntegrationXWeb()
 
         val request = SearchSearchRequest().also {
             it.query = "Kotlin Multiplatform"
@@ -65,9 +63,8 @@ class SearchTest {
     }
 
     @Test
-    @Ignore("Integration test - calls real X API")
     fun testSearchWithPagination() = runTest {
-        val xweb = XWebFactory.instance()
+        val xweb = authenticatedIntegrationXWeb()
 
         // First page
         val request1 = SearchSearchRequest().also {
@@ -91,4 +88,5 @@ class SearchTest {
             assertTrue(response2.data.tweets.isNotEmpty(), "Second page should return results")
         }
     }
+
 }
