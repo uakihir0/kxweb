@@ -55,7 +55,9 @@ object ClientTransactionId {
      */
     @OptIn(ExperimentalEncodingApi::class)
     fun generate(method: String = "GET", path: String = ""): String {
-        val pair = cachedPair ?: return generateSimple()
+        val pair = checkNotNull(cachedPair) {
+            "Client transaction data is unavailable"
+        }
 
         return try {
             val timeNow = Clock.System.now().epochSeconds - TIME_EPOCH_OFFSET_SECONDS
@@ -72,8 +74,8 @@ object ClientTransactionId {
                 (payload[index].toInt() xor xorMask.toInt()).toByte()
             }
             Base64.encode(result).trimEnd('=')
-        } catch (_: Exception) {
-            generateSimple()
+        } catch (e: Exception) {
+            throw IllegalStateException("Failed to generate client transaction ID", e)
         }
     }
 
@@ -291,11 +293,6 @@ object ClientTransactionId {
     }
 
     private fun unsigned(value: Byte): Int = value.toInt() and 0xFF
-
-    private fun generateSimple(): String {
-        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-        return (1..20).map { chars.random() }.joinToString("")
-    }
 
     private fun encodeTimestampLittleEndian(epochSeconds: Long): ByteArray {
         return byteArrayOf(
