@@ -1,5 +1,8 @@
 package work.socialhub.kxweb
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.test.runTest
 import work.socialhub.khttpclient.HttpRequest
 import work.socialhub.kxweb.internal.share.ClientTransactionId
 import work.socialhub.kxweb.internal.share.InternalUtility.withCookieHeaders
@@ -91,7 +94,7 @@ class ClientTransactionIdTest {
     }
 
     @Test
-    fun testRequiredGuestTransactionHeader() {
+    fun testRequiredGuestTransactionHeader() = runTest {
         ClientTransactionId.setPairData(
             byteArrayOf(0x01, 0x02, 0x03, 0x04),
             "test-animation-key",
@@ -114,7 +117,7 @@ class ClientTransactionIdTest {
     }
 
     @Test
-    fun testExplicitTransactionIdIsConsumedOnce() {
+    fun testExplicitTransactionIdIsConsumedOnce() = runTest {
         ClientTransactionId.setPairData(
             byteArrayOf(0x01, 0x02, 0x03, 0x04),
             "test-animation-key",
@@ -145,7 +148,22 @@ class ClientTransactionIdTest {
     }
 
     @Test
-    fun testTransactionIdProviderReceivesRequestData() {
+    fun testExplicitTransactionIdIsConsumedAtomically() = runTest {
+        val config = XWebConfig().apply {
+            clientTransactionId = "one-shot-id"
+        }
+
+        val consumed = (1..20)
+            .map { async { config.consumeClientTransactionId() } }
+            .awaitAll()
+            .filterNotNull()
+
+        assertEquals(listOf("one-shot-id"), consumed)
+        assertNull(config.clientTransactionId)
+    }
+
+    @Test
+    fun testTransactionIdProviderReceivesRequestData() = runTest {
         val config = XWebConfig()
         val calls = mutableListOf<Pair<String, String>>()
         config.clientTransactionIdProvider = { method, path ->
@@ -166,6 +184,35 @@ class ClientTransactionIdTest {
         assertEquals(
             listOf("POST" to "/i/api/graphql/abc/CreateTweet"),
             calls,
+        )
+    }
+
+    @Test
+    fun testForcedGuestTransactionSetupDoesNotSendCookies() {
+        val config = XWebConfig().apply {
+            guestMode = true
+            authToken = "auth-token"
+            csrfToken = "csrf-token"
+            cookieString = "auth_token=auth-token; ct0=csrf-token"
+        }
+
+        val request = ClientTransactionId.createHomeRequest(config)
+
+        assertNull(request.header["cookie"])
+    }
+
+    @Test
+    fun testCookieTransactionSetupSendsCookies() {
+        val config = XWebConfig().apply {
+            authToken = "auth-token"
+            csrfToken = "csrf-token"
+        }
+
+        val request = ClientTransactionId.createHomeRequest(config)
+
+        assertEquals(
+            "auth_token=auth-token; ct0=csrf-token",
+            request.header["cookie"],
         )
     }
 }

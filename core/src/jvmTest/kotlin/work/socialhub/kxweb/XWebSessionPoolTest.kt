@@ -233,6 +233,32 @@ class XWebSessionPoolTest {
     }
 
     @Test
+    fun testRequestContextsKeepSelectedSessionsIsolated() {
+        val cookie = XWebSession.cookie("auth1", "csrf1")
+        val oauth = XWebSession.oauth("token1", "secret1")
+        val pool = XWebSessionPool(listOf(cookie, oauth))
+        val reset = kotlin.time.Clock.System.now().epochSeconds + 300
+        pool.updateRateLimit(oauth, "HomeTimeline", RateLimit(100, 0, reset))
+        pool.updateRateLimit(cookie, "HomeLatestTimeline", RateLimit(100, 0, reset))
+        val config = XWebConfig().apply {
+            sessionPool = pool
+        }
+
+        val homeContext = config.resolveRequestContext("HomeTimeline")
+        val latestContext = config.resolveRequestContext("HomeLatestTimeline")
+
+        assertEquals(cookie, homeContext.session)
+        assertEquals("auth1", homeContext.config.authToken)
+        assertNull(homeContext.config.oauthToken)
+        assertEquals(oauth, latestContext.session)
+        assertEquals("token1", latestContext.config.oauthToken)
+        assertNull(latestContext.config.authToken)
+        assertNull(config.currentSession)
+        assertNull(config.authToken)
+        assertNull(config.oauthToken)
+    }
+
+    @Test
     fun testFactoryPooled() {
         val xweb = XWebFactory.instancePooled(
             listOf(
