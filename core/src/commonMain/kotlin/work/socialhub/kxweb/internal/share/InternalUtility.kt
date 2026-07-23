@@ -955,12 +955,19 @@ object InternalUtility {
     }
 
     /**
-     * Apply client transaction header if enabled.
+     * Apply a configured or cached client transaction header without refreshing
+     * transaction pair data.
      */
-    fun HttpRequest.withClientTransaction(config: XWebConfig): HttpRequest = also {
-        if (config.enableClientTransaction) {
-            it.header("x-client-transaction-id", generateClientTransactionId())
-        }
+    fun HttpRequest.withClientTransaction(config: XWebConfig): HttpRequest {
+        val method = "GET"
+        val path = ""
+        return withResolvedClientTransactionHeader(
+            config = config,
+            method = method,
+            path = path,
+            requireClientTransaction = false,
+            clientTransactionId = configuredClientTransactionId(config, method, path),
+        )
     }
 
     /**
