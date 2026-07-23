@@ -5,6 +5,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import work.socialhub.khttpclient.HttpRequest
 import work.socialhub.kxweb.XWebConfig
+import work.socialhub.kxweb.XWebException
 import work.socialhub.kxweb.internal.share.InternalUtility.USER_AGENT
 import work.socialhub.kxweb.internal.share.InternalUtility.httpRequest
 import work.socialhub.kxweb.internal.share.InternalUtility.isGuest
@@ -51,6 +52,11 @@ object ClientTransactionId {
         val animationKey: String,
     )
 
+    internal data class TransactionResponse(
+        val status: Int,
+        val body: String,
+    )
+
     /**
      * Generate an ID for the exact HTTP method and URL path being requested.
      */
@@ -85,6 +91,26 @@ object ClientTransactionId {
      */
     @OptIn(ExperimentalEncodingApi::class)
     suspend fun refreshPairData(config: XWebConfig? = null) {
+        refreshPairData(
+            loadHome = {
+                val response = createHomeRequest(config).get()
+                TransactionResponse(response.status, response.stringBody)
+            },
+            loadOndemand = { chunkHash ->
+                val response = createRequest(config)
+                    .url(ONDEMAND_URL_TEMPLATE.replace("%s", chunkHash))
+                    .header("user-agent", USER_AGENT)
+                    .get()
+                TransactionResponse(response.status, response.stringBody)
+            },
+        )
+    }
+
+    @OptIn(ExperimentalEncodingApi::class)
+    internal suspend fun refreshPairData(
+        loadHome: suspend () -> TransactionResponse,
+        loadOndemand: suspend (String) -> TransactionResponse,
+    ) {
         val now = Clock.System.now().epochSeconds
         if (cachedPair != null && (now - cacheTimestamp) < CACHE_DURATION_SECONDS) {
             return
@@ -99,37 +125,58 @@ object ClientTransactionId {
             }
 
             try {
-                val homeRequest = createHomeRequest(config)
-                val homeResponse = homeRequest.get()
-                if (homeResponse.status !in 200..299) return@withLock
-                val homeHtml = homeResponse.stringBody
+                val homeResponse = loadHome()
+                if (homeResponse.status !in 200..299) {
+                    throw XWebException(
+                        message = "Failed to load X home page: HTTP ${homeResponse.status}",
+                        exception = null,
+                        status = homeResponse.status,
+                        body = homeResponse.body,
+                    )
+                }
+                val homeHtml = homeResponse.body
 
                 val verification = Regex(
                     """<meta[^>]*name=["']twitter-site-verification["'][^>]*content=["']([^"']+)["']"""
-                ).find(homeHtml)?.groupValues?.get(1) ?: return@withLock
+                ).find(homeHtml)?.groupValues?.get(1)
+                    ?: throw XWebException(
+                        "X home page does not contain transaction verification data"
+                    )
 
                 val chunkIndex = Regex(""",(\d+):["']ondemand\.s["']""")
                     .find(homeHtml)
                     ?.groupValues
                     ?.get(1)
-                    ?: return@withLock
+                    ?: throw XWebException(
+                        "X home page does not contain the ondemand transaction chunk"
+                    )
                 val chunkHash = Regex(""",$chunkIndex:["']([0-9a-f]+)["']""")
                     .find(homeHtml)
                     ?.groupValues
                     ?.get(1)
-                    ?: return@withLock
+                    ?: throw XWebException(
+                        "X home page does not contain the ondemand transaction hash"
+                    )
 
-                val ondemandResponse = createRequest(config)
-                    .url(ONDEMAND_URL_TEMPLATE.replace("%s", chunkHash))
-                    .header("user-agent", USER_AGENT)
-                    .get()
-                if (ondemandResponse.status !in 200..299) return@withLock
+                val ondemandResponse = loadOndemand(chunkHash)
+                if (ondemandResponse.status !in 200..299) {
+                    throw XWebException(
+                        message = "Failed to load X transaction bundle: HTTP ${ondemandResponse.status}",
+                        exception = null,
+                        status = ondemandResponse.status,
+                        body = ondemandResponse.body,
+                    )
+                }
 
                 val indices = Regex("""\(\w+\[(\d{1,2})],\s*16\)""")
-                    .findAll(ondemandResponse.stringBody)
+                    .findAll(ondemandResponse.body)
                     .map { it.groupValues[1].toInt() }
                     .toList()
-                if (indices.size < 2) return@withLock
+                if (indices.size < 2) {
+                    throw XWebException(
+                        "X transaction bundle does not contain animation indices"
+                    )
+                }
 
                 val keyBytes = Base64.decode(verification)
                 val animationKey = computeAnimationKey(
@@ -142,8 +189,14 @@ object ClientTransactionId {
                 cacheTimestamp = refreshedAt
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) {
-                // Keep the previous cached pair, if any.
+            } catch (e: Exception) {
+                if (cachedPair == null) {
+                    if (e is XWebException) throw e
+                    throw XWebException(
+                        message = "Failed to refresh client transaction data",
+                        exception = e,
+                    )
+                }
             }
         }
     }
@@ -155,9 +208,13 @@ object ClientTransactionId {
         cacheTimestamp = 0L
     }
 
-    internal fun setPairData(keyBytes: ByteArray, animationKey: String) {
+    internal fun setPairData(
+        keyBytes: ByteArray,
+        animationKey: String,
+        cachedAt: Long = Clock.System.now().epochSeconds,
+    ) {
         cachedPair = TransactionPair(keyBytes, animationKey)
-        cacheTimestamp = Clock.System.now().epochSeconds
+        cacheTimestamp = cachedAt
     }
 
     internal fun createRequest(config: XWebConfig?): HttpRequest {
