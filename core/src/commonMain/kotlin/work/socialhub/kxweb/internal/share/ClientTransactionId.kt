@@ -170,10 +170,7 @@ object ClientTransactionId {
                     )
                 }
 
-                val indices = Regex("""\(\w+\[(\d{1,2})],\s*16\)""")
-                    .findAll(ondemandResponse.body)
-                    .map { it.groupValues[1].toInt() }
-                    .toList()
+                val indices = extractAnimationIndices(ondemandResponse.body)
                 if (indices.size < 2) {
                     throw XWebException(
                         "X transaction bundle does not contain animation indices"
@@ -266,6 +263,13 @@ object ClientTransactionId {
         } else {
             null
         }
+    }
+
+    internal fun extractAnimationIndices(bundle: String): List<Int> {
+        return Regex("""\(\w+\[(\d{1,2})\],\s*16\)""")
+            .findAll(bundle)
+            .map { it.groupValues[1].toInt() }
+            .toList()
     }
 
     private fun computeAnimationKey(
